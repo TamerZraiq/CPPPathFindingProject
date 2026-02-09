@@ -63,7 +63,7 @@ void PathPlanning::AStar_Planner()
         return;
     }
     
-    //discovering what valid moves can be made 
+    //discovering what valid moves can be made, discovered cells 
     int dr[4] = { -1, 1, 0, 0 };//rows go down when increased 
     int dc[4] = { 0, 0, -1, 1 };//columns move right when increased , so any move is just an offset to (r,c)
 
@@ -75,6 +75,27 @@ void PathPlanning::AStar_Planner()
         if (inBounds(nr, nc) && isFree(nr, nc)) {//making sure its valid and printing the valid neighbor/possible move
             std::cout << "(" << nr << "," << nc << ")\n";
         }
+    }
+    //visisted here means that it has been discovered, not physicially there
+    visited = std::vector<std::vector<int>>(rows, std::vector<int>(cols, 0)); //creating a new grid to show whats visited and whats not
+    visited[sr][sc] = 1; //1 means visited, 0 means not, since it starts from start coordinate themn thats visited 
+    for (int k = 0; k < 4; k++) {
+        int nr = sr + dr[k];
+        int nc = sc + dc[k];//as before it generates whats a valid neighbor cell
+        if (inBounds(nr, nc) && isFree(nr, nc)) {
+            visited[nr][nc] = 1;//marking the neighbor as visited if its a valid point
+        }
+    }
+    std::cout << "\nVisited overlay (with neighbors):\n";
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            if (r == sr && c == sc) std::cout << "S ";
+            else if (r == gr && c == gc) std::cout << "G ";
+            else if (v[r][c] == 1) std::cout << "# ";
+            else if (visited[r][c] == 1) std::cout << "* ";//free visited cells are shown as *
+            else std::cout << ". ";
+        }//so this visited section is just to make sure that the the already discoverd cells no need to discover them again as they are considered and reachable
+        std::cout << "\n";
     }
 
 }
