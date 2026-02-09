@@ -25,6 +25,8 @@ class PathPlanning
 			{1, 1, 0, 1, 1},
 			{1, 0, 0, 0, 0} 
 		};
+		std::vector<std::vector<int>>visited;
+
 		
 };
 
