@@ -18,8 +18,6 @@ class PathPlanning
 		
 
 	private:
-		bool inBounds(int r, int c, int rows, int cols);
-		bool isFree(int r, int c);
 		std::vector<std::vector<int>>v = {
 			{0, 0, 0, 0, 0},
 			{0, 1, 1, 0, 0},
