@@ -62,5 +62,19 @@ void PathPlanning::AStar_Planner()
         std::cout << "Start is the goal. No pathfinding needed.\n";
         return;
     }
+    
+    //discovering what valid moves can be made 
+    int dr[4] = { -1, 1, 0, 0 };//rows go down when increased 
+    int dc[4] = { 0, 0, -1, 1 };//columns move right when increased , so any move is just an offset to (r,c)
+
+    std::cout << "\nValid neighbors of Start:\n";
+    for (int k = 0; k < 4; k++) { //when k=0, dr[0] = -1, and dc[0] = 0, so (-1, 0) so move up by 1 since its decreased by 1, same goes for k 0-3
+        int nr = sr + dr[k];//neighbor cell is the start cell + the offset/move, so since k=0 is up, its off the grid
+        int nc = sc + dc[k];//however k=3 is move to the right by 1 (0,1) so its valid
+
+        if (inBounds(nr, nc) && isFree(nr, nc)) {//making sure its valid and printing the valid neighbor/possible move
+            std::cout << "(" << nr << "," << nc << ")\n";
+        }
+    }
 
 }
