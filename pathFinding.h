@@ -11,6 +11,7 @@
 #include <iostream>
 
 
+
 class PathPlanning
 {
 	public:
@@ -26,7 +27,39 @@ class PathPlanning
 			{1, 0, 0, 0, 0} 
 		};
 		std::vector<std::vector<int>>visited;
+		std::vector<std::vector<int>> fScore(rows, std::vector<int>(cols, INF));
 
+		struct Position {
+			int row;
+			int col;
+		};
+		struct Node { int f, g, r, c; };
+
+		// Manhattan distance (h) heuristic function
+		int manhattanDistance(const Position &a, const Position &b) {
+			return std::abs(a.row - b.row) + std::abs(a.col - b.col);
+		}
+
+		// Cost from one cell to an adjacent cell (g). For 4-neighborhood, cost = 1
+		int g_cost(int from_r, int from_c, int to_r, int to_c) {
+			(void)from_r;
+			(void)from_c;
+			(void)to_r;
+			(void)to_c;
+			return 1;
+		}
+
+		// Heuristic cost to goal (h) using Manhattan distance
+		int h_cost(int row, int col, int gr, int gc) {
+			Position a{row, col};
+			Position b{ gr, gc };
+			return manhattanDistance(a, b);
+		}
+
+		// Total estimated cost (f = g + h)
+		int f_cost(int g, int h) {
+			return g + h;
+		}
 		
 };
 
