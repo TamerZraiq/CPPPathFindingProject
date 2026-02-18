@@ -5,6 +5,7 @@
 */
 
 #include <iostream>
+#include <limits>
 #include "pathFinding.h"
 
 void PathPlanning::AStar_Planner()
@@ -74,6 +75,11 @@ void PathPlanning::AStar_Planner()
 
         if (inBounds(nr, nc) && isFree(nr, nc)) {//making sure its valid and printing the valid neighbor/possible move
             std::cout << "(" << nr << "," << nc << ")\n";
+            int g = g_cost(sr, sc, nr, nc);
+            int h = h_cost(nr, nc, gr, gc);
+            int f = f_cost(g, h);
+            std::cout << f;
+
         }
     }
     //visisted here means that it has been discovered, not physicially there
@@ -97,5 +103,6 @@ void PathPlanning::AStar_Planner()
         }//so this visited section is just to make sure that the the already discoverd cells no need to discover them again as they are considered and reachable
         std::cout << "\n";
     }
+
 
 }
