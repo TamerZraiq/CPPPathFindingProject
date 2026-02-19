@@ -68,6 +68,16 @@ void PathPlanning::AStar_Planner()
     int dr[4] = { -1, 1, 0, 0 };//rows go down when increased 
     int dc[4] = { 0, 0, -1, 1 };//columns move right when increased , so any move is just an offset to (r,c)
 
+    // add start node to open list (leave f at zero as requested)
+    {
+        int start_g = 0;
+        int start_h = h_cost(sr, sc, gr, gc); // compute h for information, not required for f here
+        int start_f = 0; // explicitly leave f at zero per your instruction
+        openList.push_back(SimpleNode{ sr, sc, start_g, start_h, start_f, -1, -1 });
+    }
+
+    std::cout << "\nOpen list initialized with start node (" << sr << "," << sc << ")\n";
+
     std::cout << "\nValid neighbors of Start:\n";
     for (int k = 0; k < 4; k++) { //when k=0, dr[0] = -1, and dc[0] = 0, so (-1, 0) so move up by 1 since its decreased by 1, same goes for k 0-3
         int nr = sr + dr[k];//neighbor cell is the start cell + the offset/move, so since k=0 is up, its off the grid
@@ -78,7 +88,7 @@ void PathPlanning::AStar_Planner()
             int h = h_cost(nr, nc, gr, gc);
             int f = f_cost(g, h);
             // collect neighbor into open list
-            openList.push_back(SimpleNode{ nr, nc, g, h, f });
+            openList.push_back(SimpleNode{ nr, nc, g, h, f, sr, sc });
             std::cout << "(" << nr << "," << nc << ")  g=" << g << "  h=" << h << "  f=" << f << "\n";
 
 
@@ -90,6 +100,31 @@ void PathPlanning::AStar_Planner()
     for (size_t i = 0; i < openList.size(); ++i) {
         const auto& n = openList[i];
         std::cout << i << ": (" << n.r << "," << n.c << ") g=" << n.g << " h=" << n.h << " f=" << n.f << "\n";
+    }
+
+    // find node q with least f on the open list and pop it off ---
+    if (!openList.empty()) {
+        size_t min_idx = 0;
+        for (size_t i = 1; i < openList.size(); ++i) {
+            if (openList[i].f < openList[min_idx].f) {
+                min_idx = i;
+            }
+            else if (openList[i].f == openList[min_idx].f) {
+                // optional tie-breaker: prefer lower g (closer to start)
+                if (openList[i].g < openList[min_idx].g) min_idx = i;
+            }
+        }
+
+        SimpleNode q = openList[min_idx];          // selected node
+        openList.erase(openList.begin() + min_idx); // pop q off open list
+
+        std::cout << "\nSelected q from open list: (" << q.r << "," << q.c << ") g=" << q.g << " h=" << q.h << " f=" << q.f << "\n";
+
+        // we don't expand successors yet (you asked for gradual steps)
+        // when ready, I'll add successor generation and the rest of the loop.
+    }
+    else {
+        std::cout << "\nOpen list is empty, nothing to select.\n";
     }
 
     //visisted here means that it has been discovered, not physicially there
