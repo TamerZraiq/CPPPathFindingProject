@@ -24,7 +24,7 @@ class PathPlanning
 			int col;
 		};
 		struct Node { int f, g, r, c; };
-		struct SimpleNode { int r; int c; int g; int h; int f; };
+		struct SimpleNode { int r; int c; int g; int h; int f; int pr; int pc; };
 
 		std::vector<std::vector<int>>v = {
 			{0, 0, 0, 0, 0},
