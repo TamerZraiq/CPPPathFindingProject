@@ -19,6 +19,13 @@ class PathPlanning
 		
 
 	private:
+		struct Position {
+			int row;
+			int col;
+		};
+		struct Node { int f, g, r, c; };
+		struct SimpleNode { int r; int c; int g; int h; int f; };
+
 		std::vector<std::vector<int>>v = {
 			{0, 0, 0, 0, 0},
 			{0, 1, 1, 0, 0},
@@ -27,13 +34,8 @@ class PathPlanning
 			{1, 0, 0, 0, 0} 
 		};
 		std::vector<std::vector<int>>visited;
-		std::vector<std::vector<int>> fScore(rows, std::vector<int>(cols, INF));
-
-		struct Position {
-			int row;
-			int col;
-		};
-		struct Node { int f, g, r, c; };
+		std::vector<SimpleNode> openList;   // nodes discovered and waiting to be expanded
+		std::vector<SimpleNode> closedList; // nodes already expanded (not used yet)
 
 		// Manhattan distance (h) heuristic function
 		int manhattanDistance(const Position &a, const Position &b) {

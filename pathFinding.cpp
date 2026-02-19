@@ -74,14 +74,24 @@ void PathPlanning::AStar_Planner()
         int nc = sc + dc[k];//however k=3 is move to the right by 1 (0,1) so its valid
 
         if (inBounds(nr, nc) && isFree(nr, nc)) {//making sure its valid and printing the valid neighbor/possible move
-            std::cout << "(" << nr << "," << nc << ")\n";
             int g = g_cost(sr, sc, nr, nc);
             int h = h_cost(nr, nc, gr, gc);
             int f = f_cost(g, h);
-            std::cout << f;
+            // collect neighbor into open list
+            openList.push_back(SimpleNode{ nr, nc, g, h, f });
+            std::cout << "(" << nr << "," << nc << ")  g=" << g << "  h=" << h << "  f=" << f << "\n";
+
 
         }
     }
+
+    // show open list contents (simple view)
+    std::cout << "\nOpen list contents (" << openList.size() << " entries):\n";
+    for (size_t i = 0; i < openList.size(); ++i) {
+        const auto& n = openList[i];
+        std::cout << i << ": (" << n.r << "," << n.c << ") g=" << n.g << " h=" << n.h << " f=" << n.f << "\n";
+    }
+
     //visisted here means that it has been discovered, not physicially there
     visited = std::vector<std::vector<int>>(rows, std::vector<int>(cols, 0)); //creating a new grid to show whats visited and whats not
     visited[sr][sc] = 1; //1 means visited, 0 means not, since it starts from start coordinate themn thats visited 
