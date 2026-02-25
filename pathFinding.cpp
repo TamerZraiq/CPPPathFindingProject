@@ -68,6 +68,10 @@ void PathPlanning::AStar_Planner()
     int dr[4] = { -1, 1, 0, 0 };//rows go down when increased 
     int dc[4] = { 0, 0, -1, 1 };//columns move right when increased , so any move is just an offset to (r,c)
 
+    //Minimal step: clear open and closed lists so each run is fresh
+    openList.clear();
+    closedList.clear();
+
     // add start node to open list (leave f at zero as requested)
     {
         int start_g = 0;
@@ -90,8 +94,6 @@ void PathPlanning::AStar_Planner()
             // collect neighbor into open list
             openList.push_back(SimpleNode{ nr, nc, g, h, f, sr, sc });
             std::cout << "(" << nr << "," << nc << ")  g=" << g << "  h=" << h << "  f=" << f << "\n";
-
-
         }
     }
 
@@ -120,8 +122,29 @@ void PathPlanning::AStar_Planner()
 
         std::cout << "\nSelected q from open list: (" << q.r << "," << q.c << ") g=" << q.g << " h=" << q.h << " f=" << q.f << "\n";
 
-        // we don't expand successors yet (you asked for gradual steps)
-        // when ready, I'll add successor generation and the rest of the loop.
+        // generate q's 8 successors and set their parents to q
+        int dr8[8] = { -1, -1, -1, 0, 0, 1, 1, 1 };
+        int dc8[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+
+        std::cout << "\nGenerating successors of q (parents set to q):\n";
+        for (int k = 0; k < 8; ++k) {
+            int nr = q.r + dr8[k];
+            int nc = q.c + dc8[k];
+
+            if (!inBounds(nr, nc)) continue;
+            if (!isFree(nr, nc)) continue;
+
+            // compute costs using your helpers
+            int succ_g = q.g + g_cost(q.r, q.c, nr, nc);
+            int succ_h = h_cost(nr, nc, gr, gc);
+            int succ_f = f_cost(succ_g, succ_h);
+
+            // set parent to q and add to open list (no OPEN/CLOSED checks)
+            openList.push_back(SimpleNode{ nr, nc, succ_g, succ_h, succ_f, q.r, q.c });
+            std::cout << "  successor (" << nr << "," << nc << ") parent=(" << q.r << "," << q.c << ") g=" << succ_g << " h=" << succ_h << " f=" << succ_f << "\n";
+        }
+
+        std::cout << "\nOpen list now has " << openList.size() << " entries after adding q's successors.\n";
     }
     else {
         std::cout << "\nOpen list is empty, nothing to select.\n";
