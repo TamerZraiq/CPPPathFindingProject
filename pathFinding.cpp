@@ -1,176 +1,255 @@
 /*
-* Tamer Zraiq(G00425053)
-* C++ Programming - 4th Year 2026
+* Tamer Zraiq (G00425053)
+* C++ Programming Path Finding Project - 4th Year 2026
 * pathFinding.cpp
 */
 
 #include <iostream>
-#include <limits>
 #include "pathFinding.h"
 
-void PathPlanning::AStar_Planner()
+// Helper: print the raw numeric grid
+static void printRawGrid(const std::vector<std::vector<int>>& grid)
 {
-    //printing the grid as is
-    for (const auto& row : v) {
-        for (int cell : row) {
+    std::cout << "Raw Grid:\n";
+    for (const auto& row : grid) {
+        for (int cell : row)
             std::cout << cell << " ";
+        std::cout << "\n";
+    }
+}
+
+// Helper: print the coordinate reference grid showing (row,col) for each cell
+static void printCoordinateGrid(int rows, int cols)
+{
+    std::cout << "Coordinate Grid:\n";
+    for (int r = 0; r < rows; ++r) {
+        for (int c = 0; c < cols; ++c)
+            std::cout << "(" << r << "," << c << ") ";
+        std::cout << "\n";
+    }
+}
+
+// Helper: print the semantic grid (S=start, G=goal, #=obstacle, .=free)
+static void printSemanticGrid(const std::vector<std::vector<int>>& grid,
+    int sr, int sc, int gr, int gc)
+{
+    int rows = static_cast<int>(grid.size());
+    for (int r = 0; r < rows; ++r) {
+        int cols = static_cast<int>(grid[r].size());
+        for (int c = 0; c < cols; ++c) {
+            if (r == sr && c == sc) std::cout << "S ";
+            else if (r == gr && c == gc) std::cout << "G ";
+            else if (grid[r][c] == 1)    std::cout << "# ";
+            else                         std::cout << ". ";
         }
         std::cout << "\n";
     }
+}
+
+// Helper: print the visited overlay (* = visited free cell)
+static void printVisitedGrid(const std::vector<std::vector<int>>& grid,
+    const std::vector<std::vector<int>>& visited,
+    int sr, int sc, int gr, int gc)
+{
+    int rows = static_cast<int>(grid.size());
+    for (int r = 0; r < rows; ++r) {
+        int cols = static_cast<int>(grid[r].size());
+        for (int c = 0; c < cols; ++c) {
+            if (r == sr && c == sc)  std::cout << "S ";
+            else if (r == gr && c == gc)  std::cout << "G ";
+            else if (grid[r][c] == 1)     std::cout << "# ";
+            else if (visited[r][c] == 1)  std::cout << "* ";
+            else                          std::cout << ". ";
+        }
+        std::cout << "\n";
+    }
+}
+
+// Main A* planner
+void PathPlanning::AStar_Planner()
+{
+    //grid dimensions
+    int rows = static_cast<int>(v.size());
+    int cols = static_cast<int>(v[0].size());
+
+    //start / goal coordinates
+    const int sr = 0, sc = 0;   // start  (top-left)
+    const int gr = 4, gc = 4;   // goal   (bottom-right)
+
+    //bounds / free-cell lambdas
+    auto inBounds = [&](int r, int c) {
+        return r >= 0 && r < rows && c >= 0 && c < cols;
+        };
+    auto isFree = [&](int r, int c) {
+        return v[r][c] == 0;
+        };
+
+    //print grids
+    printRawGrid(v);
+
+    std::cout << "\nGrid dimensions: " << rows << "x" << cols << "\n";
+    std::cout << "Start: (" << sr << "," << sc << ")  "
+        << "Goal: (" << gr << "," << gc << ")\n";
+
+    std::cout << "\nSemantic Grid:\n";
+    printSemanticGrid(v, sr, sc, gr, gc);
+
     std::cout << "\n";
-    //printing grid as semantic grid 
-    int sr = 0, sc = 0;   // start row, start column
-    int gr = 4, gc = 4;   // goal row, goal column
-
-
-    //for validating the heigh and width of the grid (row & col)
-    int rows = v.size();
-    int cols = v[0].size();
-
-    //output the dimensions of the grid
-    std::cout << "\nGrid Dimensions: " << rows << "x" << cols << "\n";
-
-    //making sure the starting/goal point coordinate is real
-    auto inBounds = [&](int r, int c) {return r >= 0 && r < rows && c >= 0 && c < cols; };
-
-    //making sure the cell is free (not an obstacle)
-    auto isFree = [&](int r, int c) {return v[r][c] == 0; };
-
-    //validating that the start and goal positions are within bounds and free
-    if (!inBounds(sr, sc) || !inBounds(gr, gc) || !isFree(sr, sc) || !isFree(gr, gc)) {
+    printCoordinateGrid(rows, cols);
+    //validate start / goal
+    if (!inBounds(sr, sc) || !inBounds(gr, gc) ||
+        !isFree(sr, sc) || !isFree(gr, gc))
+    {
         std::cout << "Invalid start or goal position.\n";
         return;
     }
 
-    std::cout << "Start: (" << sr << "," << sc << ")\n";
-    std::cout << "Goal : (" << gr << "," << gc << ")\n\n";
-
-    for (int r = 0; r < v.size(); r++) {//nested for loop to traverse the 2D vector
-        for (int c = 0; c < v[r].size(); c++) {
-            if (r == sr && c == sc)
-                std::cout << "S "; //marking the start position when the row and column match the sr and sc (0,0)
-            else if (r == gr && c == gc)
-                std::cout << "G ";//marking the goal/finish position when the row and column match the gr and gc (4,4)
-            else if (v[r][c] == 1)
-                std::cout << "# ";//if its a 1 which means obstacle, print it as #
-            else
-                std::cout << ". ";//anything other than 1 is free space, print it as .
-        }
-        std::cout << "\n";
-    }
-
-    if (sr == gr && sc == gc) { //more validation
-        std::cout << "Start is the goal. No pathfinding needed.\n";
+    if (sr == gr && sc == gc) {
+        std::cout << "Start is already the goal. No pathfinding needed.\n";
         return;
     }
-    
-    //discovering what valid moves can be made, discovered cells 
-    int dr[4] = { -1, 1, 0, 0 };//rows go down when increased 
-    int dc[4] = { 0, 0, -1, 1 };//columns move right when increased , so any move is just an offset to (r,c)
 
-    //Minimal step: clear open and closed lists so each run is fresh
+    //8-directional movement offsets
+    const int dr8[8] = { -1, -1, -1,  0, 0,  1, 1, 1 };
+    const int dc8[8] = { -1,  0,  1, -1, 1, -1, 0, 1 };
+
+    //initialise open / closed lists
     openList.clear();
     closedList.clear();
 
-    // add start node to open list (leave f at zero as requested)
+    //Start node: g=0, h=h_cost, f=g+h
     {
-        int start_g = 0;
-        int start_h = h_cost(sr, sc, gr, gc); // compute h for information, not required for f here
-        int start_f = 0; // explicitly leave f at zero per your instruction
-        openList.push_back(SimpleNode{ sr, sc, start_g, start_h, start_f, -1, -1 });
+        int start_h = h_cost(sr, sc, gr, gc);
+        openList.push_back(SimpleNode{ sr, sc, 0, start_h, f_cost(0, start_h), -1, -1 });
     }
 
-    std::cout << "\nOpen list initialized with start node (" << sr << "," << sc << ")\n";
+    std::cout << "\n-----------------------------------------------\n";
+    std::cout << "Open list initialised with start node (" << sr << "," << sc << ")\n";
 
-    std::cout << "\nValid neighbors of Start:\n";
-    for (int k = 0; k < 4; k++) { //when k=0, dr[0] = -1, and dc[0] = 0, so (-1, 0) so move up by 1 since its decreased by 1, same goes for k 0-3
-        int nr = sr + dr[k];//neighbor cell is the start cell + the offset/move, so since k=0 is up, its off the grid
-        int nc = sc + dc[k];//however k=3 is move to the right by 1 (0,1) so its valid
+    bool goalFound = false;
 
-        if (inBounds(nr, nc) && isFree(nr, nc)) {//making sure its valid and printing the valid neighbor/possible move
-            int g = g_cost(sr, sc, nr, nc);
-            int h = h_cost(nr, nc, gr, gc);
-            int f = f_cost(g, h);
-            // collect neighbor into open list
-            openList.push_back(SimpleNode{ nr, nc, g, h, f, sr, sc });
-            std::cout << "(" << nr << "," << nc << ")  g=" << g << "  h=" << h << "  f=" << f << "\n";
+    //main A* loop
+    while (!openList.empty())
+    {
+        //print current open list
+        std::cout << "\nOpen list (" << openList.size() << " entries):\n";
+        for (size_t i = 0; i < openList.size(); ++i) {
+            const auto& n = openList[i];
+            std::cout << "  " << i << ": (" << n.r << "," << n.c << ")"
+                << "  g=" << n.g << "  h=" << n.h << "  f=" << n.f << "\n";
         }
-    }
 
-    // show open list contents (simple view)
-    std::cout << "\nOpen list contents (" << openList.size() << " entries):\n";
-    for (size_t i = 0; i < openList.size(); ++i) {
-        const auto& n = openList[i];
-        std::cout << i << ": (" << n.r << "," << n.c << ") g=" << n.g << " h=" << n.h << " f=" << n.f << "\n";
-    }
-
-    // find node q with least f on the open list and pop it off ---
-    if (!openList.empty()) {
+        //pick node q with lowest f (tie-break: lower g)
         size_t min_idx = 0;
         for (size_t i = 1; i < openList.size(); ++i) {
-            if (openList[i].f < openList[min_idx].f) {
+            if (openList[i].f < openList[min_idx].f ||
+                (openList[i].f == openList[min_idx].f &&
+                    openList[i].g < openList[min_idx].g))
+            {
                 min_idx = i;
-            }
-            else if (openList[i].f == openList[min_idx].f) {
-                // optional tie-breaker: prefer lower g (closer to start)
-                if (openList[i].g < openList[min_idx].g) min_idx = i;
             }
         }
 
-        SimpleNode q = openList[min_idx];          // selected node
-        openList.erase(openList.begin() + min_idx); // pop q off open list
+        SimpleNode q = openList[min_idx];
+        openList.erase(openList.begin() + min_idx);
 
-        std::cout << "\nSelected q from open list: (" << q.r << "," << q.c << ") g=" << q.g << " h=" << q.h << " f=" << q.f << "\n";
+        std::cout << "\nSelected q: (" << q.r << "," << q.c << ")"
+            << "  g=" << q.g << "  h=" << q.h << "  f=" << q.f << "\n";
 
-        // generate q's 8 successors and set their parents to q
-        int dr8[8] = { -1, -1, -1, 0, 0, 1, 1, 1 };
-        int dc8[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
-
-        std::cout << "\nGenerating successors of q (parents set to q):\n";
-        for (int k = 0; k < 8; ++k) {
+        //generate 8 successors of q
+        std::cout << "Generating successors of q:\n";
+        for (int k = 0; k < 8; ++k)
+        {
             int nr = q.r + dr8[k];
             int nc = q.c + dc8[k];
 
-            if (!inBounds(nr, nc)) continue;
-            if (!isFree(nr, nc)) continue;
+            if (!inBounds(nr, nc) || !isFree(nr, nc))
+                continue;
 
-            // compute costs using your helpers
             int succ_g = q.g + g_cost(q.r, q.c, nr, nc);
             int succ_h = h_cost(nr, nc, gr, gc);
             int succ_f = f_cost(succ_g, succ_h);
 
-            // set parent to q and add to open list (no OPEN/CLOSED checks)
+            //goal check
+            if (nr == gr && nc == gc) {
+                std::cout << "  Goal found at (" << nr << "," << nc << ")"
+                    << "  parent=(" << q.r << "," << q.c << ")"
+                    << "  g=" << succ_g << "  h=" << succ_h << "  f=" << succ_f << "\n";
+                closedList.push_back(SimpleNode{ nr, nc, succ_g, succ_h, succ_f, q.r, q.c });
+                goalFound = true;
+                break;   //stop expanding successors for this node
+            }
+
+            //skip if a better-or-equal node is already in OPEN
+            bool skip = false;
+            for (const auto& on : openList) {
+                if (on.r == nr && on.c == nc && on.f <= succ_f) { skip = true; break; }
+            }
+            if (skip) continue;
+
+            //skip if a better-or-equal node is already in CLOSED
+            for (const auto& cn : closedList) {
+                if (cn.r == nr && cn.c == nc && cn.f <= succ_f) { skip = true; break; }
+            }
+            if (skip) continue;
+
+            //add successor to OPEN
             openList.push_back(SimpleNode{ nr, nc, succ_g, succ_h, succ_f, q.r, q.c });
-            std::cout << "  successor (" << nr << "," << nc << ") parent=(" << q.r << "," << q.c << ") g=" << succ_g << " h=" << succ_h << " f=" << succ_f << "\n";
+            std::cout << "  successor (" << nr << "," << nc << ")"
+                << "  parent=(" << q.r << "," << q.c << ")"
+                << "  g=" << succ_g << "  h=" << succ_h << "  f=" << succ_f << "\n";
         }
 
-        std::cout << "\nOpen list now has " << openList.size() << " entries after adding q's successors.\n";
-    }
-    else {
-        std::cout << "\nOpen list is empty, nothing to select.\n";
+        //push q onto CLOSED
+        closedList.push_back(q);
+        std::cout << "Pushed q (" << q.r << "," << q.c << ") onto closed list\n";
+
+        if (goalFound) break;   //exit the main while-loop
+
+        //update visited overlay (all cells expanded so far)
+        visited = std::vector<std::vector<int>>(rows, std::vector<int>(cols, 0));
+        for (const auto& cn : closedList) {
+            visited[cn.r][cn.c] = 1;
+        }
+
+        std::cout << "\nVisited overlay after this expansion:\n";
+        printVisitedGrid(v, visited, sr, sc, gr, gc);
+        std::cout << "-----------------------------------------------\n";
     }
 
-    //visisted here means that it has been discovered, not physicially there
-    visited = std::vector<std::vector<int>>(rows, std::vector<int>(cols, 0)); //creating a new grid to show whats visited and whats not
-    visited[sr][sc] = 1; //1 means visited, 0 means not, since it starts from start coordinate themn thats visited 
-    for (int k = 0; k < 4; k++) {
-        int nr = sr + dr[k];
-        int nc = sc + dc[k];//as before it generates whats a valid neighbor cell
-        if (inBounds(nr, nc) && isFree(nr, nc)) {
-            visited[nr][nc] = 1;//marking the neighbor as visited if its a valid point
+    //final result
+    if (goalFound) {
+        std::cout << "\n=== Path found! ===\n";
+        // The goal is the last entry pushed into closedList.
+        // Walk back through parent pointers to reconstruct the path.
+        std::vector<std::pair<int, int>> path;
+        int cr = gr, cc = gc;
+        while (cr != -1 && cc != -1) {
+            path.push_back({ cr, cc });
+            // find the node in closedList that matches (cr,cc)
+            bool found = false;
+            for (const auto& cn : closedList) {
+                if (cn.r == cr && cn.c == cc) {
+                    cr = cn.pr;
+                    cc = cn.pc;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) break;
         }
-    }
-    std::cout << "\nVisited overlay (with neighbors):\n";
-    for (int r = 0; r < rows; r++) {
-        for (int c = 0; c < cols; c++) {
-            if (r == sr && c == sc) std::cout << "S ";
-            else if (r == gr && c == gc) std::cout << "G ";
-            else if (v[r][c] == 1) std::cout << "# ";
-            else if (visited[r][c] == 1) std::cout << "* ";//free visited cells are shown as *
-            else std::cout << ". ";
-        }//so this visited section is just to make sure that the the already discoverd cells no need to discover them again as they are considered and reachable
+
+        std::cout << "Path (goal -> start): ";
+        for (const auto& p : path)
+            std::cout << "(" << p.first << "," << p.second << ") ";
+        std::cout << "\n";
+
+        std::cout << "Path (start -> goal): ";
+        for (int i = static_cast<int>(path.size()) - 1; i >= 0; --i)
+            std::cout << "(" << path[i].first << "," << path[i].second << ") ";
         std::cout << "\n";
     }
-
-
+    else {
+        std::cout << "\n=== No path found. ===\n";
+    }
 }
