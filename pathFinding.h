@@ -10,29 +10,64 @@
 
 #include <vector>
 #include <iostream>
-#include <cmath>     // std::abs
+#include <cmath>    // std::abs, std::sqrt
 
 class PathPlanning
 {
 public:
-    void AStar_Planner();
+
+    // ------------------------------------------------------------------
+    // Heuristic options — passed into setHeuristic() or the comparison runner
+    // ------------------------------------------------------------------
+    enum class Heuristic {
+        MANHATTAN,   // |dr| + |dc|         — admissible, fast
+        EUCLIDEAN,   // sqrt(dr^2 + dc^2)   — true straight-line distance
+        CHEBYSHEV    // max(|dr|, |dc|)      — tightest fit for 8-dir movement
+    };
+
+    // ------------------------------------------------------------------
+    // PlannerResult — returned by AStar_Planner so callers and tests
+    // can inspect the outcome without parsing terminal output.
+    // ------------------------------------------------------------------
+    struct PlannerResult {
+        bool   pathFound = false;
+        int    iterations = 0;
+        int    nodesExpanded = 0;
+        int    pathLength = 0;
+        double timeMs = 0.0;   // wall-clock time in milliseconds
+        std::vector<std::pair<int, int>> path;  // cells in start->goal order
+    };
+
+    // Run A* and return the result. All trace output goes to terminal.
+    PlannerResult AStar_Planner();
+
+    // ------------------------------------------------------------------
+    // Setters — configure the planner; defaults come from config.h
+    // ------------------------------------------------------------------
+    void setGrid(const std::vector<std::vector<int>>& grid) { v = grid; }
+    void setStart(int r, int c) { startR = r; startC = c; }
+    void setGoal(int r, int c) { goalR = r; goalC = c; }
+    void setHeuristic(Heuristic h) { heuristic = h; }
+
+    // Verbose = true  ? print every iteration detail (open list, overlays, etc.)
+    // Verbose = false ? only print startup grids and the final result
+    void setVerbose(bool v) { verbose = v; }
 
 private:
+
     // A 2D grid position (row, col)
-    struct Position {
-        int row;
-        int col;
-    };
+    struct Position { int row, col; };
 
     // A single node in the search tree.
-    // pr / pc are the parent cell coordinates (-1 if this is the start node).
+    // pr / pc are the parent cell coordinates (-1,-1 for the start node).
     struct SimpleNode {
-        int r, c;           // this cell
-        int g, h, f;        // path cost, heuristic, total estimate
-        int pr, pc;         // parent cell (-1,-1 for start)
+        int r, c;       // this cell
+        int g;          // actual cost from start
+        double h, f;    // heuristic and total estimate (double for Euclidean)
+        int pr, pc;     // parent cell (-1,-1 for start)
     };
 
-    // 5x5 grid: 0 = free, 1 = obstacle
+    // Default grid (used when RANDOMISE_GRID = false in config.h)
     //
     // Cell coordinates (row, col):
     //   (0,0)  (0,1)  (0,2)  (0,3)  (0,4)
@@ -44,37 +79,65 @@ private:
     std::vector<std::vector<int>> v = {
         {0, 0, 0, 0, 0},
         {0, 1, 1, 0, 0},
-        {1, 0, 0, 0, 1},
+        {1, 1, 0, 0, 1},
         {1, 1, 0, 1, 1},
         {1, 0, 0, 0, 0}
     };
 
-    std::vector<std::vector<int>> visited;  // exploration overlay for display
-    std::vector<SimpleNode> openList;       // discovered, not yet expanded
-    std::vector<SimpleNode> closedList;     // already expanded
+    int       startR = 0;
+    int       startC = 0;
+    int       goalR = 4;
+    int       goalC = 4;
+    Heuristic heuristic = Heuristic::MANHATTAN;
+    bool      verbose = true;
 
-    // Manhattan distance between two positions.
-    // Used as the heuristic h.  Admissible for 4-directional grids;
-    // it under-estimates on 8-directional grids (still admissible, but
-    // Chebyshev distance would be a tighter fit for 8-direction movement).
-    int manhattanDistance(const Position& a, const Position& b) const {
-        return std::abs(a.row - b.row) + std::abs(a.col - b.col);
+    std::vector<std::vector<int>> visited;
+    std::vector<SimpleNode>       openList;
+    std::vector<SimpleNode>       closedList;
+
+    // ------------------------------------------------------------------
+    // Search pipeline
+    // ------------------------------------------------------------------
+    void   printStartupInfo(int sr, int sc, int gr, int gc) const;
+    bool   validateInputs(int sr, int sc, int gr, int gc) const;
+    size_t selectBestNode() const;
+    bool   expandSuccessors(const SimpleNode& q, int gr, int gc);
+    void   updateVisitedOverlay(int rows, int cols);
+    std::vector<std::pair<int, int>> reconstructPath(int gr, int gc) const;
+    void   printResult(const std::vector<std::pair<int, int>>& path,
+        int sr, int sc, int gr, int gc,
+        int iteration, double timeMs) const;
+
+    // ------------------------------------------------------------------
+    // Heuristic / cost helpers
+    // ------------------------------------------------------------------
+
+    // g cost: uniform grid, all moves cost 1
+    int g_cost(int, int, int, int) const { return 1; }
+
+    // h cost: dispatches to the active heuristic
+    double h_cost(int row, int col, int gr, int gc) const
+    {
+        double dr = std::abs(row - gr);
+        double dc = std::abs(col - gc);
+        switch (heuristic) {
+        case Heuristic::EUCLIDEAN:  return std::sqrt(dr * dr + dc * dc);
+        case Heuristic::CHEBYSHEV:  return std::max(dr, dc);
+        case Heuristic::MANHATTAN:
+        default:                    return dr + dc;
+        }
     }
 
-    // Step cost from one cell to an adjacent cell.
-    // All moves cost 1 (uniform grid).
-    int g_cost(int /*from_r*/, int /*from_c*/, int /*to_r*/, int /*to_c*/) const {
-        return 1;
-    }
+    double f_cost(int g, double h) const { return g + h; }
 
-    // Heuristic cost estimate from (row,col) to the goal (gr,gc).
-    int h_cost(int row, int col, int gr, int gc) const {
-        return manhattanDistance({ row, col }, { gr, gc });
-    }
-
-    // Total estimated cost f = g + h.
-    int f_cost(int g, int h) const {
-        return g + h;
+    // Human-readable name for the active heuristic
+    std::string heuristicName() const
+    {
+        switch (heuristic) {
+        case Heuristic::EUCLIDEAN: return "Euclidean";
+        case Heuristic::CHEBYSHEV: return "Chebyshev";
+        default:                   return "Manhattan";
+        }
     }
 };
 

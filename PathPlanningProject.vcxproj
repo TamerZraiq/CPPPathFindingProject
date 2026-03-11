@@ -126,9 +126,15 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="pathFinding.cpp" />
+    <ClCompile Include="runner.cpp" />
+    <ClCompile Include="tests.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="config.h" />
+    <ClInclude Include="gridGen.h" />
     <ClInclude Include="pathFinding.h" />
+    <ClInclude Include="runner.h" />
+    <ClInclude Include="tests.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
