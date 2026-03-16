@@ -12,9 +12,56 @@
 ## Table of Contents
  
 ## 1. Project Overview
-This project implements the A* search algorithm in C++ for 2D grid-based pathfinding in Visual Studio 2022 IDE. The program finds the shortest path between a start cell and a goal cell on a grid that may contain obstacles. It supports three different heuristic functions, random grid generation with a solvability check, and a comparison mode that runs all three heuristics on the same grid and prints a results table side by side.
  
-All modifiable parameters live in a single `config.h` file. Grid size, start and goal positions, obstacle density, which heuristic to use, and whether to compare all three are all set there. Nothing in the algorithm files needs to be touched between runs.
+This project implements the A* search algorithm in C++ for 2D grid-based pathfinding in Visual Studio 2022 IDE. The program finds the shortest path between a start cell and a goal cell on a grid that may contain obstacles. It supports three heuristic functions, random grid generation with a built-in solvability check, and a comparison mode that runs all three heuristics on the same grid and prints a results table.
+
+The implementation follows the A* structure from GeeksforGeeks [4] and builds on it with a full C++ class-based design. The PathPlanning class handles the entire search pipeline internally — open and closed list management, successor generation, cost computation, and path reconstruction. Outside the class, config.h controls all runtime parameters so the grid size, start and goal positions, heuristic choice, and output verbosity can all be changed in one place without touching the algorithm code. The project was developed in four stages: getting a correct single-file implementation, splitting it into a modular multi-file structure, adding the config system and the three heuristics, and finally a code review pass. Each stage is covered in Section 4.
+
+### How to Run
+ 
+Once setting up the structure and heirarchy of the project files, compile/build the files and run using the Start Without Debugging button. 
+
+On startup the program presents a menu:
+ 
+```
+================================
+   A* Pathfinding - Tamer Z
+================================
+  1. Run A* planner
+  2. Run test suite
+================================
+Choice:
+``` 
+**Option 1** runs the planner. What happens next depends on `config.h`:
+- If `RANDOMISE_GRID = true`, a random grid is generated and the seed is printed so the layout can be reproduced
+- If `COMPARE_HEURISTICS = true`, all three heuristics run on the same grid and a comparison table is printed at the end
+- If `COMPARE_HEURISTICS = false`, only the heuristic set in `ACTIVE_HEURISTIC` runs
+- If `SHOW_ITERATION_TRACE = true`, the open list, selected node, and visited overlay are printed after every iteration
+ 
+**Option 2** runs the full test suite of seven cases.
+ 
+### Configuring a Run
+ 
+All parameters that are modifiable are in `config.h`.
+ 
+| Parameter | What it controls |
+|---|---|
+| `GRID_ROWS` / `GRID_COLS` | Grid dimensions |
+| `START_ROW` / `START_COL` | Start position |
+| `GOAL_ROW` / `GOAL_COL` | Goal position |
+| `RANDOMISE_GRID` | Random grid or fixed default |
+| `OBSTACLE_DENSITY` | Fraction of cells that become obstacles (0.0 to ~0.45) |
+| `RANDOM_SEED_AUTO` | New layout every run, or fixed seed |
+| `RANDOM_SEED` | Specific seed when auto is off |
+| `COMPARE_HEURISTICS` | Run all three or just one |
+| `ACTIVE_HEURISTIC` | Which heuristic when not comparing (`"MANHATTAN"`, `"EUCLIDEAN"`, `"CHEBYSHEV"`) |
+| `SHOW_ITERATION_TRACE` | Full per-iteration output or final result only |
+ 
+### Expected Output
+ 
+On a successful run with `COMPARE_HEURISTICS = true` and `SHOW_ITERATION_TRACE = false`, you will see the startup grids printed once, then each heuristic's final result, then the comparison table. Screenshots of the expected terminal output are shown below.
+ 
+(add screenshots later for startup grids (raw grid, semantic grid, coordinate grid), path grid for one heuristic, and the result table)
 
 ---
  
