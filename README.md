@@ -82,10 +82,74 @@ Each node stores the coordinates of the node it was reached from \[4\]. When the
 AI tools were used throughout this project for several supporting tasks. Claude was used to help structure code across multiple files, add comments to functions, suggest fixes for bugs that were found throughout implementation, and clear up the feasibility of certain options. The algorithm logic, design decisions, heuristic matching, and the critical analysis in Section 9 were developed through my own understanding and review of the generated code.
  
 AI was not used to simply generate and submit code. Each piece of generated code was reviewed, tested, broken, and fixed. A number of structural bugs in the initial output had to be identified and corrected before the algorithm produced correct results, and several C-style patterns were identified and documented as examples of what the AI did not handle well from a C++17 standpoint.
- 
+
 ---
  
 ## 4. Development History
+The project went through four clear stages. Each one built on a working version of the previous, which made it possible to test and verify changes without breaking everything.
+
+ 
+### Stage 1: Getting a Working Algorithm
+ 
+The first version was a single file built by following the GeeksforGeeks A* structure \[4\] directly. The core loop, open and closed lists, successor generation, and path reconstruction were all implemented from that reference. During testing several bugs showed up that needed to be found and fixed.
+ 
+The most significant was an outer `for (k < 4)` loop wrapped around the entire search. This caused A* to run four times from scratch on every execution. The output looked plausible at first because the path was found eventually, but the algorithm was restarting completely on each outer iteration.
+ 
+```cpp
+// Bug: outer loop that should not exist
+for (int k = 0; k < 4; ++k) {
+    while (!openList.empty()) {
+        // entire search ran inside here
+    }
+}
+ 
+// Fix: single while loop
+while (!openList.empty()) {
+    // ...
+}
+
+
+```
+ 
+Another issue was that when the goal was found during successor expansion, nothing signalled the main loop to stop. The search kept going after the goal was already reached. A `goalFound` flag and a break fixed this.
+ 
+The start node also had its `f` value hardcoded to 0, meaning the heuristic had no effect on the first step. This was corrected to compute `h` properly and set `f = g + h`.
+ 
+Path reconstruction used a `goto` label, which was cleaned up to a proper return statement.
+
+### Stage 2: Splitting into Files and Adding Structure
+ 
+Once the algorithm was correct, the single file was split into eight files each with one clear job. This made every later change faster and safer.
+ 
+The key change here was making `AStar_Planner()` return a `PlannerResult` struct instead of being void. Before this, the only way to inspect the result was to read the terminal output. With the struct, test cases and the comparison runner could check outcomes directly without parsing printed text.
+ 
+A `verbose` flag was added so the per-iteration trace could be turned off. Without it, the comparison mode would produce hundreds of lines per run, burying the comparison table.
+ 
+Timing was added using `std::chrono::high_resolution_clock` so `PlannerResult.timeMs` reflects actual measured time.
+ 
+Seven test cases were written at this stage, covering normal paths, no path situations, start equal to goal, start or goal on an obstacle, a minimal 2x2 grid, and a narrow corridor.
+
+
+### Stage 3: Config File, Random Grids, and Three Heuristics
+ 
+At this point all hardcoded values were moved into `config.h` as `constexpr` values. Grid size, start position, goal position, obstacle density and all behaviour flags live there. Nothing in the algorithm files has magic numbers anymore.
+ 
+Random grid generation was added in `gridGen.h`. After placing obstacles randomly it runs a BFS flood-fill from start to goal to confirm the grid is solvable before returning it. If not, it adjusts the seed and tries again.
+ 
+Euclidean and Chebyshev heuristics were added alongside Manhattan. The important discovery here was that Manhattan must be restricted to 4-directional movement. Using Manhattan with 8-directional movement makes it inadmissible because it over-estimates diagonal moves \[2\] \[3\]. Chebyshev is the correct heuristic for 8-directional movement, and Euclidean also works well with it.
+ 
+At the same time `h` and `f` in `SimpleNode` were changed from `int` to `double`. When Euclidean was first added with `int` storage, the `sqrt` result was being silently truncated, which made Euclidean behave almost the same as Manhattan and made the comparison pointless.
+
+### Stage 4: Stage 4: Full Code Review and Final State
+ 
+With all three heuristics working and the config system in place, the focus shifted to reviewing the entire codebase for correctness and code quality.
+
+The C++ audit identified four patterns that were substandard: raw int* pointer arrays used for direction offsets instead of std::array, std::rand/std::srand instead of std::mt19937, const char* arrays instead of std::string_view, and linear O(n) scans through the closed list on every neighbour check. These are documented in Section 9 with their modern alternatives.
+
+Beyond the C++ quality issues, the review also confirmed the algorithm behaviour was correct end to end. The stale duplicate handling in the main loop was verified — a node can appear in the open list more than once if its cost is updated after first insertion, and the closed list check before expansion correctly skips those stale copies. The h and f fields being double rather than int was confirmed necessary for Euclidean to produce meaningful fractional values. The movement model tie between heuristic and direction array was checked against all three heuristics to confirm Manhattan never uses diagonals.
+
+The final project state at this point: eight files, config.h controlling all parameters, random grids with BFS pre-validation, three heuristics each with the correct movement model, a comparison table with iteration count, nodes expanded, path length and timing, seven test cases, and a 30-line main.cpp. The PlannerResult return type meant every run could be inspected programmatically rather than by parsing terminal output.
+ 
 ---
  
 ## 5. Code Walkthrough
