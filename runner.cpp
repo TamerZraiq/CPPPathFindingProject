@@ -69,9 +69,8 @@ void runHeuristicComparison(const std::vector<std::vector<int>>& grid)
 void runSingleHeuristic(const std::vector<std::vector<int>>& grid)
 {
     PathPlanning::Heuristic h = PathPlanning::Heuristic::MANHATTAN;
-    std::string active = ACTIVE_HEURISTIC;
-    if (active == "EUCLIDEAN") h = PathPlanning::Heuristic::EUCLIDEAN;
-    else if (active == "CHEBYSHEV") h = PathPlanning::Heuristic::CHEBYSHEV;
+    if (ACTIVE_HEURISTIC == "EUCLIDEAN") h = PathPlanning::Heuristic::EUCLIDEAN;
+    else if (ACTIVE_HEURISTIC == "CHEBYSHEV") h = PathPlanning::Heuristic::CHEBYSHEV;
 
     PathPlanning planner;
     planner.setGrid(grid);
