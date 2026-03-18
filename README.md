@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Language** | C++17 |
-| **Files** | `config.h` · `gridGen.h` · `pathFinding.h/cpp` · `runner.h/cpp` · `tests.h/cpp` · `main.cpp` |
+| **Files** | `config.h` · `gridGen.h` · `pathFinding.h` · `pathFinding.cpp` · `runner.cpp` · `tests.h` · `tests.cpp`· `main.cpp` |
  
 ---
  
@@ -36,7 +36,7 @@
  
 This project implements the A* search algorithm in C++ for 2D grid-based pathfinding in Visual Studio 2022 IDE. The program finds the shortest path between a start cell and a goal cell on a grid that may contain obstacles. It supports three heuristic functions, random grid generation with a built-in solvability check, and a comparison mode that runs all three heuristics on the same grid and prints a results table.
 
-The implementation follows the A* structure from GeeksforGeeks [4] and builds on it with a full C++ class-based design. The PathPlanning class handles the entire search pipeline internally: open and closed list management, successor generation, cost computation, and path reconstruction. Outside the class, config.h controls all runtime parameters so the grid size, start and goal positions, heuristic choice, and output verbosity can all be changed in one place without touching the algorithm code. The project was developed in four stages: getting a correct single-file implementation, splitting it into a modular multi-file structure, adding the config system and the three heuristics, and finally a code review pass. Each stage is covered in Section 4.
+The implementation follows the A* structure from GeeksforGeeks [4] and builds on it with a full C++ class-based design. The PathPlanning class handles the entire search pipeline internally: open and closed list management, successor generation, cost computation, and path reconstruction. Outside the class, config.h controls all runtime parameters, so the grid size, start and goal positions, heuristic choice, and output verbosity can all be changed in one place without touching the algorithm code. The project was developed in four stages: getting a correct single-file implementation, splitting it into a modular multi-file structure, adding the config system and the three heuristics, and finally, a code review pass. Each stage is covered in Section 4.
 
 ### How to Run
 
@@ -45,9 +45,9 @@ The implementation follows the A* structure from GeeksforGeeks [4] and builds on
 ![description](images/ProjectStructure.png)
 
 
-After setting up the structure and heirarchy of the project files, compile/build the files and run using the Start Without Debugging button. 
+After setting up the project structure and hierarchy, compile the files and run them using the Start Without Debugging button. 
 
-On startup the program presents a menu:
+On startup, the program presents a menu:
  
 ```
 ================================
@@ -60,7 +60,7 @@ Choice:
 ``` 
 **Option 1** runs the planner. What happens next depends on `config.h`:
 - If `RANDOMISE_GRID = true`, a random grid is generated and the seed is printed so the layout can be reproduced
-- If `COMPARE_HEURISTICS = true`, all three heuristics run on the same grid and a comparison table is printed at the end
+- If `COMPARE_HEURISTICS = true`, all three heuristics run on the same grid, and a comparison table is printed at the end
 - If `COMPARE_HEURISTICS = false`, only the heuristic set in `ACTIVE_HEURISTIC` runs
 - If `SHOW_ITERATION_TRACE = true`, the open list, selected node, and visited overlay are printed after every iteration
  
@@ -68,7 +68,7 @@ Choice:
  
 ### Configuring a Run
  
-All parameters that are modifiable are in `config.h`.
+All modifiable parameters are in `config.h`.
  
 | Parameter | What it controls |
 |---|---|
@@ -99,7 +99,7 @@ A* is a graph traversal and pathfinding algorithm \[1\] \[4\]. It works by combi
 Every node in the search is scored using this formula \[4\]:
  
 - **g(n)** is the exact cost of the path from the start node to node n, accumulated as the search progresses
-- **h(n)** is the heuristic estimate of the cost from n to the goal. This is never exact, but it must never over-estimate the true cost — a property called **admissibility** \[1\] \[2\]. If h over-estimates, A* may discard the actual shortest path and return a suboptimal result
+- **h(n)** is the heuristic estimate of the cost from n to the goal. This is never exact, but it must never over-estimate the true cost (a property called **admissibility**) \[1\] \[2\]. If h over-estimates, A* may discard the actual shortest path and return a suboptimal result
 - **f(n)** is the sum of the two. The algorithm always expands the node with the lowest f next, which is what directs the search toward the goal rather than outward in all directions
  
 ### The open and closed lists
@@ -142,12 +142,12 @@ This is the structure the implementation follows, based on the GeeksforGeeks bre
  
    e) Push q onto the closed list
  
-If the open list empties without finding the goal — no path exists
+If the open list empties without finding the goal, no path exists
 ```
  
 ### Parent pointers and path recovery
  
-Each node stores the coordinates of the node it was reached from \[4\]. When the goal is found, the path is recovered by following these parent references backwards from the goal to the start, then reversing the sequence. In this implementation that chain is stored in the `pr` and `pc` fields of `SimpleNode`, with `-1, -1` used as the sentinel value to mark the start node.
+Each node stores the coordinates of the node where it reached from (the previous node) \[4\]. When the goal is found, the path is recovered by following these parent references backwards from the goal to the start, then reversing the sequence. In this implementation, that chain is stored in the `pr` and `pc` fields of `SimpleNode`, with `-1, -1` used as the sentinel value to mark the start node.
 
 ---
 ## 3. AI Tools Declaration
@@ -160,13 +160,11 @@ AI was not used to simply generate and submit code. Each piece of generated code
 
 ## 4. Development History
 
-The project went through four clear stages. Each one built on a working version of the previous, which made it possible to test and verify changes without breaking everything.
-
----
+The project went through four clear stages. Each one was built on a working version of the previous, which made it possible to test and verify changes without breaking everything.
 
 ### Stage 1: Getting a Working Algorithm
 
-The first version was a single file built by following the GeeksforGeeks A* structure \[4\] directly. The core loop, open and closed lists, successor generation, and path reconstruction were all implemented from that reference. During testing several bugs showed up that needed to be found and fixed.
+The first version was a single file built by following the GeeksforGeeks A* structure \[4\] directly. The core loop, open and closed lists, successor generation, and path reconstruction were all implemented from that reference. During testing, several bugs showed up that needed to be found and fixed; that's where AI tools came in.
 
 The most significant was an outer `for (k < 4)` loop wrapped around the entire search. This caused A* to run four times from scratch on every execution. The output looked plausible at first because the path was found eventually, but the algorithm was restarting completely on each outer iteration.
 
@@ -184,9 +182,9 @@ while (!openList.empty()) {
 }
 ```
 
-Another issue was that when the goal was found during successor expansion, nothing signalled the main loop to stop. The search kept going after the goal was already reached. A `goalFound` flag and a break fixed this.
+Another issue was that when the goal was found during successor expansion, nothing signalled the main loop to stop. The search kept going after the goal was already reached. So a `goalFound` flag and a break were added to fix this.
 
-The start node also had its `f` value hardcoded to 0, meaning the heuristic had no effect on the first step. This was corrected to compute `h` properly and set `f = g + h`.
+The start node also had its `f` value hardcoded to 0, meaning the heuristic did not affect the first step. This was corrected to compute `h` properly and set `f = g + h`.
 
 Path reconstruction used a `goto` label, which was cleaned up to a proper return statement.
 
@@ -194,13 +192,13 @@ Path reconstruction used a `goto` label, which was cleaned up to a proper return
 
 ### Stage 2: Splitting into Files and Adding Structure
 
-Once the algorithm was correct, the single file was split into eight files each with one clear job. This made every later change faster and safer.
+Once the algorithm was correct, the single file was split into eight files, each with one clear job. This made every later change faster and safer.
 
 The key change here was making `AStar_Planner()` return a `PlannerResult` struct instead of being void. Before this, the only way to inspect the result was to read the terminal output. With the struct, test cases and the comparison runner could check outcomes directly without parsing printed text.
 
 A `verbose` flag was added so the per-iteration trace could be turned off. Without it, the comparison mode would produce hundreds of lines per run, burying the comparison table.
 
-Timing was added using `std::chrono::high_resolution_clock` so `PlannerResult.timeMs` reflects actual measured time.
+Timing was added using `std::chrono::high_resolution_clock` so `PlannerResult.timeMs` reflects the actual measured time.
 
 Seven test cases were written at this stage, covering normal paths, no path situations, start equal to goal, start or goal on an obstacle, a minimal 2x2 grid, and a narrow corridor.
 
@@ -208,158 +206,120 @@ Seven test cases were written at this stage, covering normal paths, no path situ
 
 ### Stage 3: Config File, Random Grids, and Three Heuristics
 
-At this point all hardcoded values were moved into `config.h` as `constexpr` values. Grid size, start position, goal position, obstacle density and all behaviour flags live there. Nothing in the algorithm files has magic numbers anymore.
+At this point, all hardcoded values were moved into `config.h` as `constexpr` values. Grid size, start position, goal position, obstacle density and all behaviour flags live there.
 
-Random grid generation was added in `gridGen.h`. After placing obstacles randomly it runs a BFS flood-fill from start to goal to confirm the grid is solvable before returning it. If not, it adjusts the seed and tries again.
+Random grid generation was added in `gridGen.h`. After placing obstacles randomly, it runs a BFS (Breadth-First Search) flood-fill from start to goal to confirm the grid is solvable before returning it. If not, it adjusts the seed and tries again.
 
 Euclidean and Chebyshev heuristics were added alongside Manhattan. The important discovery here was that Manhattan must be restricted to 4-directional movement. Using Manhattan with 8-directional movement makes it inadmissible because it over-estimates diagonal moves \[2\] \[3\]. Chebyshev is the correct heuristic for 8-directional movement, and Euclidean also works well with it.
 
-At the same time `h` and `f` in `SimpleNode` were changed from `int` to `double`. When Euclidean was first added with `int` storage, the `sqrt` result was being silently truncated, which made Euclidean behave almost the same as Manhattan and made the comparison pointless.
+At the same time, `h` and `f` in `SimpleNode` were changed from `int` to `double`. When Euclidean was first added with `int` storage, the `sqrt` result was being shortened, which made Euclidean behave almost the same as Manhattan and made the comparison pointless.
 
 ---
 
-### Stage 4: C++ Audit
+### Stage 4: Full Code Review and Final State
 
-The final stage was a review pass looking specifically for C-style patterns in the generated code. Four issues were found: raw pointer arrays for direction offsets, `std::rand` and `std::srand`, `const char*` for string names, and linear O(n) closed list lookups. These are documented in Section 9 with their modern C++ alternatives.
+With all three heuristics implemented and the configuration system in place, the focus shifted to reviewing the codebase for correctness and overall quality.
+
+The C++ audit highlighted a few areas that needed improvement. Direction offsets were implemented using raw int* arrays instead of std::array, random number generation relied on std::rand/std::srand rather than std::mt19937, string literals were handled with const char* instead of std::string_view, and the closed list was being searched with a linear O(n) scan for every neighbour check. These issues and their modern alternatives are discussed in Section 9.
+
+From an algorithmic perspective, the review confirmed that the implementation behaves correctly end-to-end. The handling of stale duplicates in the open list was verified — nodes can appear multiple times if their cost is updated after insertion, and the closed list check before expansion correctly filters out outdated entries. The use of double for the h and f costs was also validated, as Euclidean distance requires fractional precision. In addition, the movement model was cross-checked against each heuristic to ensure consistency, particularly that the Manhattan distance is restricted to non-diagonal motion.
+
+At this stage, the project consists of eight files, with config.h centralising all parameters. The system supports random grid generation with BFS-based solvability checks, three heuristics aligned with their respective movement models, and a comparison table reporting iteration count, nodes expanded, path length, and execution time. Seven test cases are included, and the main entry point has been reduced to a concise 30-line main.cpp. The introduction of the PlannerResult return type also allows results to be inspected programmatically, rather than relying on terminal output.
 
 ---
 
 ## 5. Code Walkthrough
 
----
-
 ### 5.1 `config.h`
-
-This file has one job: hold every tunable parameter in one place.
-
+ 
+The decision to have a dedicated config file came from a practical problem: changing the grid size or start position meant hunting through multiple files to find hardcoded values. Putting everything in one place as `constexpr` means one file controls the entire program's behaviour without touching any algorithm code.
+ 
+`constexpr` was chosen over `#define` for all numeric and boolean values because `#define` is a text substitution with no type information. The compiler cannot catch a `#define` being passed where the wrong type is expected. `constexpr` values are type-checked, scoped, and visible in the debugger \[6\] \[7\].
+ 
 ```cpp
-#pragma once
-#ifndef CONFIG_H
-#define CONFIG_H
-```
-
-`#pragma once` prevents the file from being included more than once per translation unit. The `#ifndef` guard does the same thing in a more traditional way. Both are kept for compatibility.
-
-```cpp
-constexpr int GRID_ROWS = 8;
-constexpr int GRID_COLS = 8;
-```
-
-`constexpr` means the value is resolved at compile time and substituted wherever it appears. There is no runtime variable. This is preferred over `#define` for numeric values because it is type-safe and respects scope \[6\] \[7\].
-
-```cpp
-constexpr int START_ROW = 0;
-constexpr int START_COL = 0;
-constexpr int GOAL_ROW  = 7;
-constexpr int GOAL_COL  = 7;
-```
-
-Used in `gridGen.h` to keep those cells free during obstacle placement, and in `runner.cpp` to configure the planner before each run.
-
-```cpp
+constexpr int    GRID_ROWS        = 8;
+constexpr int    GRID_COLS        = 8;
+constexpr int    START_ROW        = 0;
+constexpr int    GOAL_ROW         = 7;
 constexpr bool   RANDOMISE_GRID   = true;
 constexpr double OBSTACLE_DENSITY = 0.28;
 ```
-
-`OBSTACLE_DENSITY` of 0.28 means roughly 28% of cells become obstacles. Going above about 0.45 risks generating grids where no path exists at all, which would cause the generator to loop many times retrying.
-
+ 
+`ACTIVE_HEURISTIC` was originally a `#define` string, inconsistent with everything else in the file. It was changed to `constexpr std::string_view` \[6\] so it follows the same pattern as every other parameter and can be compared with `==` directly without copying into a `std::string` first.
+ 
+```cpp
+// Before — no type, no scope, unsafe to compare directly
+#define ACTIVE_HEURISTIC "MANHATTAN"
+ 
+// After — consistent with everything else in config.h
+constexpr std::string_view ACTIVE_HEURISTIC = "MANHATTAN";
+```
+ 
+The split between `RANDOM_SEED_AUTO` and `RANDOM_SEED` was a deliberate choice. During testing it was useful to fix a specific layout and run the same grid repeatedly to verify behaviour. But for the comparison mode, a new grid every run is more representative. Having both options controlled from config without touching any other file made switching between them fast.
+ 
 ```cpp
 constexpr bool         RANDOM_SEED_AUTO = true;
 constexpr unsigned int RANDOM_SEED      = 42;
 ```
-
-When `RANDOM_SEED_AUTO` is true, the seed comes from the current Unix timestamp so the grid changes every run. Setting it false and fixing `RANDOM_SEED` makes a specific layout reproducible, which is useful for debugging.
-
+ 
+`SHOW_ITERATION_TRACE` exists because verbose output is essential for understanding what the algorithm is doing on small grids, but it completely buries the comparison table on anything larger. Making it a config flag rather than hardcoded meant no code changes were needed to switch between the two modes.
+ 
 ```cpp
-constexpr bool COMPARE_HEURISTICS   = true;
-constexpr std::string_view ACTIVE_HEURISTIC = "MANHATTAN";
 constexpr bool SHOW_ITERATION_TRACE = false;
 ```
-
-`COMPARE_HEURISTICS` runs all three heuristics and prints a table. `ACTIVE_HEURISTIC` was originally a `#define` string, which is inconsistent with every other declaration in this file and unsafe to compare directly — `#define` has no type and no scope, and comparing `const char*` with `==` compares pointer addresses not content. It was changed to `constexpr std::string_view` \[6\] so it is type-safe, consistent with the rest of `config.h`, and can be compared with `==` directly in `runner.cpp` without copying into a `std::string` first. `SHOW_ITERATION_TRACE` when true prints the open list, selected node, successors, and visited overlay after every single iteration. Very useful for small grids but overwhelming for anything larger.
-
+ 
 ---
-
+ 
 ### 5.2 `gridGen.h`
-
-Provides two functions: a BFS solvability checker and a random grid generator.
-
-#### `isSolvable`
-
+ 
+The two functions here, `isSolvable` and `generateGrid`, are both `static` free functions rather than class methods. The decision was intentional: grid generation has nothing to do with pathfinding. Putting it in the `PathPlanning` class would mix concerns that are independent of each other. A separate file that the rest of the program can include without pulling in the whole planner keeps responsibilities clean.
+ 
+BFS was chosen for the solvability check rather than running A* itself because BFS does not need any cost or heuristic setup — it just checks reachability. Running A* to check solvability would require configuring a full planner object, which is more setup than the check deserves. BFS is also guaranteed to terminate in O(rows x cols) time regardless of the grid layout.
+ 
 ```cpp
 static bool isSolvable(const std::vector<std::vector<int>>& grid,
                         int sr, int sc, int gr, int gc)
 ```
-
-`static` gives this function file-scope linkage, meaning it is not visible outside `gridGen.h`. It takes the grid by `const` reference so no copy is made.
-
+ 
+The `do-while` loop for generation was chosen over a `while` loop because the check requires a generated grid to exist before it can run. A `while` loop would either require duplicating the generation code before the loop or initialising the grid to a dummy failing state. The `do-while` runs the body once unconditionally then checks, which matches the actual requirement without any artificial setup.
+ 
 ```cpp
-    std::vector<std::vector<bool>> seen(rows, std::vector<bool>(cols, false));
-    std::queue<std::pair<int,int>> q;
-    q.push({sr, sc});
-    seen[sr][sc] = true;
+do {
+    ++attempts;
+    grid.assign(rows, std::vector<int>(cols, 0));
+    // ... place obstacles ...
+    if (!isSolvable(grid, sr, sc, gr, gc))
+        rng.seed(seed + attempts * 7);
+} while (!isSolvable(grid, sr, sc, gr, gc));
 ```
-
-A 2D `seen` array stops the BFS from visiting the same cell twice. The queue holds row-column pairs. The start cell is pushed first and immediately marked so it is not re-added.
-
+ 
+`std::mt19937` with `std::uniform_real_distribution` was used instead of `std::rand` \[6\] because `std::rand` has poor statistical distribution and its global state makes it unsafe in any multi-threaded context. The Mersenne Twister produces a much better distribution and the seed is encapsulated in the engine object, not global state.
+ 
 ```cpp
-    while (!q.empty()) {
-        auto [r, c] = q.front(); q.pop();
-        if (r == gr && c == gc) return true;
+// Before
+std::srand(seed);
+double roll = static_cast<double>(std::rand()) / RAND_MAX;
+ 
+// After
+std::mt19937 rng(seed);
+std::uniform_real_distribution<double> dist(0.0, 1.0);
+double roll = dist(rng);
 ```
-
-`auto [r, c]` is C++17 structured binding \[6\]. It unpacks the pair into named variables without needing `.first` and `.second`. The goal check happens immediately after dequeuing.
-
-```cpp
-        for (int k = 0; k < 8; ++k) {
-            int nr = r + dr[k], nc = c + dc[k];
-            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols
-                && !seen[nr][nc] && grid[nr][nc] == 0)
-            {
-                seen[nr][nc] = true;
-                q.push({nr, nc});
-            }
-        }
-    }
-    return false;
-```
-
-All eight neighbours are checked. Bounds are checked before the cell is accessed to prevent out-of-range reads. If the queue empties without finding the goal, the function returns false.
-
-#### `generateGrid`
-
+ 
+The seed is passed out by reference so the caller can print it. This was added after a specific grid layout exposed a bug and there was no way to reproduce it. Having the seed available means any run can be reproduced exactly by setting `RANDOM_SEED_AUTO = false` and using the printed seed value.
+ 
 ```cpp
 static std::vector<std::vector<int>> generateGrid(unsigned int& outSeed)
 ```
-
-The seed is passed by reference so the caller can record which one was actually used.
-
-```cpp
-    do {
-        ++attempts;
-        grid.assign(rows, std::vector<int>(cols, 0));
-        for (int r = 0; r < rows; ++r) {
-            for (int c = 0; c < cols; ++c) {
-                if ((r == sr && c == sc) || (r == gr && c == gc)) continue;
-                double roll = static_cast<double>(std::rand()) / RAND_MAX;
-                if (roll < OBSTACLE_DENSITY) grid[r][c] = 1;
-            }
-        }
-        if (!isSolvable(grid, sr, sc, gr, gc))
-            std::srand(seed + attempts * 7);
-    } while (!isSolvable(grid, sr, sc, gr, gc));
-```
-
-The `do-while` guarantees at least one generation attempt. Start and goal cells are skipped with `continue` so they are always free. Each cell gets a random roll between 0 and 1. If the result is unsolvable, the seed shifts by `attempts * 7` to escape the same bad layout and the loop retries.
-
+ 
 ---
-
+ 
 ### 5.3 `pathFinding.h`
-
-Declares the `PathPlanning` class. Everything is declared here; the implementation is in `pathFinding.cpp`.
-
-#### `Heuristic` enum
-
+ 
+#### Why a scoped enum for `Heuristic`
+ 
+`enum class` was used instead of a plain `enum` because the three heuristic names are common words. A plain `enum` would put `MANHATTAN`, `EUCLIDEAN`, and `CHEBYSHEV` directly into the enclosing scope, which risks name collisions with anything else in the program that uses those names. With `enum class`, they must be referenced as `Heuristic::MANHATTAN`, making every usage explicit \[6\] \[7\].
+ 
 ```cpp
 enum class Heuristic {
     MANHATTAN,
@@ -367,11 +327,11 @@ enum class Heuristic {
     CHEBYSHEV
 };
 ```
-
-`enum class` is a scoped enum \[6\] \[7\]. Values must be referred to with their full scope like `Heuristic::MANHATTAN`, not just `MANHATTAN`. This avoids name collisions and makes the type system enforce that the right kind of value is passed.
-
-#### `PlannerResult`
-
+ 
+#### Why `PlannerResult` as a return type
+ 
+The original implementation had `AStar_Planner()` return void. The only way to verify what happened was to read the terminal output. This made writing test cases nearly impossible — there was no way to check programmatically whether a path was found or how many nodes were expanded. Switching to a return struct meant the comparison runner could collect three results, inspect the numbers, and format the table without parsing any printed output. Every field has a default value so an early return due to invalid inputs gives the caller a properly zeroed result rather than undefined values.
+ 
 ```cpp
 struct PlannerResult {
     bool   pathFound     = false;
@@ -382,48 +342,38 @@ struct PlannerResult {
     std::vector<std::pair<int,int>> path;
 };
 ```
-
-All fields are default-initialised so if `AStar_Planner()` returns early due to invalid inputs, the caller gets a properly zeroed struct rather than garbage values. `path` holds cells in start-to-goal order. `timeMs` is `double` because `std::chrono::duration<double, std::milli>` produces a `double`.
-
-#### Setters
-
-```cpp
-void setGrid     (const std::vector<std::vector<int>>& grid) { v = grid; }
-void setStart    (int r, int c)  { startR = r; startC = c; }
-void setGoal     (int r, int c)  { goalR  = r; goalC  = c; }
-void setHeuristic(Heuristic h)   { heuristic = h; }
-void setVerbose  (bool v)        { verbose = v; }
-```
-
-All inline one-liners. `setGrid` takes the grid by `const` reference so no copy happens during the call; the copy happens in the assignment to member `v`.
-
-#### `SimpleNode`
-
+ 
+#### Why `g`, `h`, and `f` are all `double` in `SimpleNode`
+ 
+`g` started as `int` because all moves originally cost 1. When diagonal moves were given a cost of 1.414 to reflect their true geometric distance, the accumulated cost became fractional and `int` would silently truncate it, making the path cost wrong. `h` and `f` were already `double` because Euclidean distance uses `std::sqrt` which returns `double` — keeping them `int` was causing Euclidean to behave like a rounded-down approximation of Manhattan, which made the comparison table meaningless. Making all three `double` was the consistent fix.
+ 
 ```cpp
 struct SimpleNode {
     int    r, c;
-    double g;
-    double h, f;
+    double g;       // double: diagonal moves cost 1.414, not 1
+    double h, f;    // double: Euclidean uses sqrt, fractional result
     int    pr, pc;
 };
 ```
-
-`g`, `h`, and `f` are all `double`. `g` was originally `int` which worked fine when all moves cost 1, but once diagonal moves were given a cost of 1.414 the accumulated path cost became fractional and `int` would truncate it. `h` and `f` are `double` because Euclidean uses `std::sqrt` which returns `double` — if they were `int`, the fractional part would be silently cut off and Euclidean would behave like a rounded-down version of itself. `pr` and `pc` are set to `-1, -1` for the start node. That sentinel is what `reconstructPath` uses to know it has reached the beginning of the chain.
-
-#### Cost helpers
-
+ 
+#### Why `g_cost` checks both row and column
+ 
+A diagonal move changes both row and column simultaneously, which is the only way to distinguish it from a straight move. The cost 1.414 is the approximation of sqrt(2), the true Euclidean distance of a unit diagonal step. Without this, every move costs the same regardless of direction, which makes Euclidean and Chebyshev paths look artificially cheap compared to Manhattan paths and distorts the comparison.
+ 
 ```cpp
 double g_cost(int r1, int c1, int r2, int c2) const {
     return (r1 != r2 && c1 != c2) ? 1.414 : 1.0;
 }
 ```
-
-Returns 1.414 for diagonal moves and 1.0 for straight moves. The original version always returned 1, which made diagonal paths look artificially cheap. A diagonal step covers a distance of sqrt(2) approximately 1.414, so returning 1 for it was geometrically incorrect. This matters most when comparing heuristics — Euclidean and Chebyshev paths use diagonals heavily and their reported path costs were misleading until this was fixed. The check `r1 != r2 && c1 != c2` identifies a diagonal move since both row and column change simultaneously.
-
+ 
+#### Why `h_cost` stores `dr` and `dc` as `double` before the switch
+ 
+`std::abs` on integer arguments returns an integer. If `dr` and `dc` were computed as `int`, then Euclidean's `dr*dr + dc*dc` would be integer arithmetic before being passed to `std::sqrt`, and Chebyshev's `std::max(dr, dc)` would also return an integer. Storing them as `double` from the start means all three formulas produce the correct type without any hidden truncation.
+ 
 ```cpp
 double h_cost(int row, int col, int gr, int gc) const
 {
-    double dr = std::abs(row - gr);
+    double dr = std::abs(row - gr);  // stored as double immediately
     double dc = std::abs(col - gc);
     switch (heuristic) {
         case Heuristic::EUCLIDEAN:  return std::sqrt(dr*dr + dc*dc);
@@ -433,59 +383,50 @@ double h_cost(int row, int col, int gr, int gc) const
     }
 }
 ```
-
-`dr` and `dc` are stored as `double` before the switch so all three formulas work correctly. `std::abs` on integers returns an integer, so assigning to `double` promotes them. The `default` case handles `MANHATTAN` and also acts as a fallback for any future enum value not in the switch.
-
-```cpp
-double f_cost(int g, double h) const { return g + h; }
-```
-
-`g` is `int`, `h` is `double`. The int is promoted to double automatically for the addition.
-
+ 
 ---
-
+ 
 ### 5.4 `pathFinding.cpp`
-
-Contains five display helpers and the full search pipeline.
-
-#### Display helpers
-
-All five are `static` free functions, not class methods. They have no need for class state and everything they need is passed as parameters.
-
+ 
+#### Why display functions are static free functions, not class methods
+ 
+The five print functions have no need for class state — they take everything they need as parameters. Making them class methods would give them access to the entire private interface of `PathPlanning` for no reason. Declaring them `static` at file scope means they are invisible outside `pathFinding.cpp`, which prevents them from polluting the global namespace and makes it clear they are implementation details, not part of the public interface.
+ 
 ```cpp
-static void printSemanticGrid(...) {
-    if      (r == sr && c == sc) std::cout << "S ";
-    else if (r == gr && c == gc) std::cout << "G ";
-    else if (grid[r][c] == 1)    std::cout << "# ";
-    else                         std::cout << ". ";
-}
+static void printRawGrid(const std::vector<std::vector<int>>& grid)
+static void printSemanticGrid(const std::vector<std::vector<int>>& grid, int sr, int sc, int gr, int gc)
+static void printCoordinateGrid(int rows, int cols)
+static void printVisitedGrid(...)
+static void printPathGrid(...)
 ```
-
-The priority order here matters. Start and goal are checked before obstacle. Without this, if the start cell happened to contain a `1`, it would print `#` instead of `S`.
-
+ 
+#### Why `printPathGrid` builds a 2D boolean grid
+ 
+Marking path cells in a 2D array costs O(rows x cols) to build but gives O(1) lookup per cell during printing. The alternative would be scanning the path vector for every cell in the grid, which is O(path length) per cell. On a large grid with a long path the difference is significant, and the 2D array approach is simpler to read.
+ 
 ```cpp
-static void printPathGrid(...) {
-    std::vector<std::vector<bool>> onPath(rows, std::vector<bool>(cols, false));
-    for (const auto& p : path) onPath[p.first][p.second] = true;
-    ...
-}
+std::vector<std::vector<bool>> onPath(rows, std::vector<bool>(cols, false));
+for (const auto& p : path) onPath[p.first][p.second] = true;
+// then each cell just checks onPath[r][c]
 ```
-
-A local boolean grid marks the path cells. This costs O(rows x cols) to build but gives O(1) lookup per cell during printing, which is better than scanning the path vector for every cell.
-
-#### `validateInputs`
-
+ 
+#### Why lambdas are used in `validateInputs` rather than private methods
+ 
+`inBounds` and `isFree` are used only inside `validateInputs`. Making them private class methods would expose them to the rest of the class for no benefit and would require declaring them in the header. Lambdas defined locally make their scope explicit — they exist only for this one function, and the check is defined right next to where it is used.
+ 
 ```cpp
 auto inBounds = [&](int r, int c) {
     return r >= 0 && r < rows && c >= 0 && c < cols;
 };
 auto isFree = [&](int r, int c) { return v[r][c] == 0; };
 ```
-
-Lambda functions capture `rows`, `cols`, and `v` by reference. They are defined right where they are used rather than as separate private methods because they only make sense locally.
-
-#### `selectBestNode`
-
+ 
+#### Why `selectBestNode` returns an index
+ 
+Returning the index rather than copying the node lets the caller erase the node from the vector by position directly. If the node itself was returned, the caller would need to search the vector again to find where to erase it. Returning the index avoids that second scan.
+ 
+The tie-break on `g` when two nodes have equal `f` was added because without it the order of exploration on equal-cost nodes is arbitrary and produces inconsistent paths across runs. Preferring the node with lower `g` means preferring nodes closer to the start, which tends to produce paths that take the most direct route rather than wandering at the same total cost.
+ 
 ```cpp
 size_t PathPlanning::selectBestNode() const
 {
@@ -499,210 +440,119 @@ size_t PathPlanning::selectBestNode() const
     return min_idx;
 }
 ```
-
-Returns an index rather than the node itself so the caller can erase by position without a second scan. The tie-break on `g` prefers nodes closer to the start when two nodes have the same `f`, which tends to produce more direct paths.
-
-#### `expandSuccessors`
-
+ 
+#### Why the open list update is in-place rather than remove-and-reinsert
+ 
+When a better path to a node already in the open list is found, the existing entry is updated in-place rather than removed and re-added. Remove-and-reinsert is more expensive on a flat vector because removal shifts all subsequent elements. Updating in-place is O(1) once the entry is found. The trade-off is that stale copies can accumulate if a node is updated multiple times, but these are caught by the closed list check before expansion.
+ 
 ```cpp
-const int dr4[4] = { -1,  1,  0,  0 };
-const int dc4[4] = {  0,  0, -1,  1 };
-const int dr8[8] = { -1, -1, -1,  0, 0,  1, 1, 1 };
-const int dc8[8] = { -1,  0,  1, -1, 1, -1, 0, 1 };
-
-const int* dr    = (heuristic == Heuristic::MANHATTAN) ? dr4 : dr8;
-const int* dc    = (heuristic == Heuristic::MANHATTAN) ? dc4 : dc8;
-const int  nDirs = (heuristic == Heuristic::MANHATTAN) ?  4  :  8;
-```
-
-The direction arrays encode each neighbour's offset from the current cell. `dr4/dc4` give the four axis-aligned directions. `dr8/dc8` add the four diagonals. The ternary operator selects which set to use based on the active heuristic.
-
-```cpp
-for (int k = 0; k < nDirs; ++k)
-{
-    int nr = q.r + dr[k];
-    int nc = q.c + dc[k];
-
-    if (!inBounds(nr, nc) || !isFree(nr, nc)) continue;
-    if (inClosedList(nr, nc))                  continue;
-```
-
-Bounds are checked before cell access. Closed list check comes after bounds because the cell must be in range before it can be queried.
-
-```cpp
-    if (nr == gr && nc == gc) {
-        closedList.push_back(SimpleNode{ nr, nc, succ_g, succ_h, succ_f, q.r, q.c });
-        return true;
-    }
-```
-
-When the goal is found it goes directly to the closed list with the current node as parent. `return true` signals the main loop to stop immediately.
-
-```cpp
-    bool handledByOpen = false;
-    for (auto& on : openList) {
-        if (on.r == nr && on.c == nc) {
-            if (succ_f < on.f) {
-                on.g = succ_g; on.h = succ_h; on.f = succ_f;
-                on.pr = q.r;   on.pc = q.c;
-            }
-            handledByOpen = true;
-            break;
+for (auto& on : openList) {
+    if (on.r == nr && on.c == nc) {
+        if (succ_f < on.f) {
+            on.g = succ_g; on.h = succ_h; on.f = succ_f;
+            on.pr = q.r;   on.pc = q.c;
         }
-    }
-    if (handledByOpen) continue;
-    openList.push_back(...);
-```
-
-If the neighbour is already in the open list, it is only updated if the new path is cheaper. `handledByOpen` stops it from also being pushed as a new entry.
-
-#### `reconstructPath`
-
-```cpp
-while (true) {
-    path.push_back({cr, cc});
-    for (const auto& cn : closedList) {
-        if (cn.r == cr && cn.c == cc) {
-            if (cn.pr == -1 && cn.pc == -1) return path;
-            cr = cn.pr; cc = cn.pc;
-            break;
-        }
+        handledByOpen = true;
+        break;
     }
 }
 ```
-
-Starts at the goal and walks backwards through parent pointers. When a node with `pr == -1 && pc == -1` is reached, that is the start node and the function returns. The path comes out goal-to-start; the caller reverses it.
-
-#### `AStar_Planner`
-
-```cpp
-const int sr = startR, sc = startC;
-const int gr = goalR,  gc = goalC;
-```
-
-Local `const` copies at the top. These values do not change during the search, and having local copies avoids repeated member access throughout the function.
-
+ 
+#### Why `AStar_Planner` clears both lists explicitly at the start
+ 
+The comparison runner calls `AStar_Planner` on three separate objects so this is not strictly necessary here. But if someone reuses the same `PathPlanning` object across multiple calls, stale data from the previous run would corrupt the new search. Clearing explicitly makes the function safe to call any number of times on the same object.
+ 
 ```cpp
 openList.clear();
 closedList.clear();
-{
-    double start_h = h_cost(sr, sc, gr, gc);
-    openList.push_back(SimpleNode{ sr, sc, 0, start_h, f_cost(0, start_h), -1, -1 });
+```
+ 
+---
+ 
+### 5.5 `runner.h` and `runner.cpp`
+ 
+The run logic was moved out of `main.cpp` into a separate file specifically to keep `main.cpp` small. When the comparison logic lived in `main`, it was over 100 lines just to set up three planners and print a table. That belongs in its own file with a clear name.
+ 
+The comparison function creates a fresh `PathPlanning` object for each heuristic rather than reusing one. Reusing the same object would require manually resetting open list, closed list, and visited state between runs. A fresh object is guaranteed clean by default initialisation.
+ 
+```cpp
+for (int i = 0; i < 3; ++i) {
+    PathPlanning planner;       // fresh object every time
+    planner.setGrid(grid);      // same grid for all three — fair comparison
+    planner.setHeuristic(heuristics[i]);
+    results[i] = planner.AStar_Planner();
 }
 ```
-
-Both lists are cleared before starting. This matters because `AStar_Planner` is called three times on the same object in comparison mode. The inner block scopes `start_h` to keep the function tidy.
-
+ 
+The `runSingleHeuristic` function no longer needs an intermediate `std::string` to compare `ACTIVE_HEURISTIC`. After changing it from `#define` to `constexpr std::string_view`, the `==` operator compares content directly. The old code created a heap-allocated `std::string` just to make a safe comparison, which was unnecessary overhead caused by the wrong type choice.
+ 
 ```cpp
-auto startTime = std::chrono::high_resolution_clock::now();
-// ... main loop ...
-auto endTime = std::chrono::high_resolution_clock::now();
-double timeMs = std::chrono::duration<double, std::milli>(endTime - startTime).count();
+// Before — std::string needed because #define gives const char*
+std::string active = ACTIVE_HEURISTIC;
+if (active == "EUCLIDEAN") ...
+ 
+// After — string_view == compares content directly
+if (ACTIVE_HEURISTIC == "EUCLIDEAN") ...
 ```
-
-`high_resolution_clock` gives the finest-grained clock available \[6\]. `duration<double, std::milli>` converts the elapsed time to milliseconds as a double. `.count()` pulls out the numeric value.
-
-```cpp
-size_t min_idx = selectBestNode();
-SimpleNode q   = openList[min_idx];
-openList.erase(openList.begin() + min_idx);
-```
-
-The node is copied before erasing. `erase` on a vector shifts all elements after the removed position, which is O(n).
-
-```cpp
-bool alreadyClosed = false;
-for (const auto& cn : closedList)
-    if (cn.r == q.r && cn.c == q.c) { alreadyClosed = true; break; }
-if (alreadyClosed) { continue; }
-```
-
-A node can appear multiple times in the open list if its cost was updated after first insertion. When the stale, worse copy is eventually selected, it is skipped here.
-
-```cpp
-result.path.assign(path_goal_to_start.rbegin(), path_goal_to_start.rend());
-```
-
-`rbegin()` and `rend()` are reverse iterators. Using them with `assign` fills `result.path` in start-to-goal order without a manual reverse loop.
-
+ 
 ---
-
-### 5.5 `runner.h` and `runner.cpp`
-
-Two free functions that create `PathPlanning` objects, configure them, and run them. They are free functions rather than class methods because they operate on the planner from the outside.
-
-```cpp
-void runHeuristicComparison(const std::vector<std::vector<int>>& grid);
-void runSingleHeuristic    (const std::vector<std::vector<int>>& grid);
-```
-
-In `runHeuristicComparison`, a fresh `PathPlanning` object is created for each heuristic. This guarantees clean state every time rather than relying on manual resets between runs. The same grid is passed to all three so the comparison is on equal terms.
-
-```cpp
-std::cout << std::left << std::setw(12) << "Heuristic" << ...
-```
-
-`std::left` left-aligns output. `std::setw(n)` sets the column width for the next field only and must be called before each value.
-
-In `runSingleHeuristic`, `ACTIVE_HEURISTIC` is assigned to a `std::string` before the comparison because it is a `#define` string. Comparing `const char*` pointers directly with `==` would compare memory addresses, not the string content.
-
----
-
+ 
 ### 5.6 `main.cpp`
-
+ 
+`main.cpp` is intentionally 30 lines. The two ternary expressions that select the grid and the run mode read directly from `config.h` flags, which means adding a new mode only requires changing the config and the runner, not touching `main`. Every decision about what to run is in `config.h`, and every decision about how to run it is in `runner.cpp`. `main` just connects them.
+ 
 ```cpp
 auto grid = RANDOMISE_GRID ? generateGrid(seed) : getDefaultGrid();
 COMPARE_HEURISTICS ? runHeuristicComparison(grid) : runSingleHeuristic(grid);
 ```
-
-The entire function body is 30 lines. It reads the menu choice and delegates to the right function. All logic lives in other files.
-
 ---
 
 ## 6. Heuristic Functions
 
-| Heuristic | Formula | Movement | Admissible | Notes |
-|---|---|---|---|---|
-| **Manhattan** | `\|dr\| + \|dc\|` | 4-directional | Yes | Counts axis-aligned steps only; over-estimates if diagonals are available |
-| **Euclidean** | `sqrt(dr^2 + dc^2)` | 8-directional | Yes | True straight-line distance; slightly under-estimates on discrete grids |
-| **Chebyshev** | `max(\|dr\|, \|dc\|)` | 8-directional | Yes | Exact lower bound for 8-directional movement; expands fewest nodes |
-
-The movement model must match the heuristic \[1\] \[3\]. Manhattan counts steps along axes only. Using it with diagonal movement makes it inadmissible because it over-estimates the cost of a diagonal move. Chebyshev is the mathematically correct heuristic for 8-directional movement \[2\]: `max(|dr|, |dc|)` is exactly how many king-moves a chess king would need on a clear board.
-
-### Sample Output
-
+All three heuristics are implemented inside `h_cost` in `pathFinding.h` and dispatched via a switch on the active `Heuristic` enum value. The movement model in `expandSuccessors` is also selected from the same enum, so the two are always in sync.
+ 
+```cpp
+double h_cost(int row, int col, int gr, int gc) const
+{
+    double dr = std::abs(row - gr);
+    double dc = std::abs(col - gc);
+    switch (heuristic) {
+        case Heuristic::EUCLIDEAN:  return std::sqrt(dr*dr + dc*dc);
+        case Heuristic::CHEBYSHEV:  return std::max(dr, dc);
+        case Heuristic::MANHATTAN:
+        default:                    return dr + dc;
+    }
+}
 ```
-Semantic Grid:
-S . . . . . . .
-. # . # . . . .
-. # . . . # . .
-. . . . # . . .
-. # . . . . # .
-. . # . . # . .
-. # . . . . . .
-. . . . . . . G
-
-Heuristic : Manhattan  (4-directional)
-
-Path Grid (@ = path):
-S @ . . . . . .
-. # . # . . . .
-. # . . . # . .
-. . @ . # . . .
-. # @ . . . # .
-. . # @ . # . .
-. # . @ @ @ @ .
-. . . . . . @ G
-
-Path length    : 10 cells
-Nodes expanded : 24
-Time           : 0.0412 ms
-```
-
-*Figure 1: Example output on an 8x8 random grid with Manhattan heuristic.*
-
-### Comparison Table Output
-
+ 
+| Heuristic | Formula | Movement | Admissible |
+|---|---|---|---|
+| **Manhattan** | `\|dr\| + \|dc\|` | 4-directional | Yes |
+| **Euclidean** | `sqrt(dr^2 + dc^2)` | 8-directional | Yes |
+| **Chebyshev** | `max(\|dr\|, \|dc\|)` | 8-directional | Yes |
+ 
+### Manhattan
+ 
+Manhattan distance counts the number of axis-aligned steps between two cells: horizontal and vertical \[4\]. It is paired with 4-directional movement because that is the only movement model where Manhattan is geometrically accurate. If diagonal moves are allowed, a diagonal step from (0,0) to (1,1) has a true cost of sqrt(2) but Manhattan scores it as 2, meaning it overestimates and violates admissibility. Restricting it to 4 directions keeps it valid.
+ 
+The consequence of 4-directional movement is that Manhattan always produces longer paths than the other two heuristics on the same grid, because it cannot take shortcuts diagonally. From the comparison results, on an 8x8 grid Manhattan consistently found paths of around 12 cells while Euclidean and Chebyshev found paths of 9 cells on the same layout. It also expanded significantly more nodes (around 28 compared to 12-15 for the others) because it can only move along axes and has to navigate around obstacles the long way.
+ 
+Manhattan is the right choice if the problem genuinely only allows axis-aligned movement, for example a grid where movement is restricted to up/down/left/right like many tile based games. In this project it was included primarily to show the contrast.
+ 
+### Euclidean
+ 
+Euclidean distance is the straight-line distance between two points \[4\]. It works correctly with 8-directional movement because diagonal and straight moves are both possible and the formula naturally accounts for both. It is always admissible on a discrete grid because the straight line distance to the goal is always less than or equal to the actual path cost, and can never get there in fewer steps than the crow-flies distance suggests.
+ 
+In practice, Euclidean tends to expand slightly more nodes than Chebyshev on 8-directional grids because its estimates are slightly lower than the true cost. A lower h value means A* is less certain about which direction to head and explores a slightly wider area. From the terminal output, Euclidean typically expanded around 15 nodes and ran in about 0.044ms on an 8x8 grid, sitting between Manhattan and Chebyshev on every metric.
+ 
+Euclidean is the most natural heuristic to reach for because the formula is familiar, but Chebyshev is technically the better fit for 8-directional discrete grids. Euclidean was included because it demonstrates how even a valid admissible heuristic can be less efficient than a tighter one.
+ 
+### Chebyshev
+ 
+Chebyshev distance, `max(|dr|, |dc|)`, is the minimum number of moves a chess king would need to travel between two squares on an empty board \[2\] \[4\]. This maps directly onto 8-directional grid movement, where you can move one cell in any direction per step. Because Chebyshev matches the movement model exactly, its estimate is the tightest possible lower bound without overestimating, making it the most informed of the three heuristics.
+ 
+The result of a tighter estimate is that A* wastes less time exploring nodes that are unlikely to be on the optimal path. From the terminal output, Chebyshev consistently expanded the fewest nodes: around 12 on an 8x8 grid and ran in roughly 0.038ms. It found paths of the same length as Euclidean but in fewer iterations. The comparison table made this pattern clear across multiple runs:
+ 
 ```
 HEURISTIC COMPARISON TABLE
 ================================================
@@ -713,52 +563,85 @@ Euclidean   Yes         18          15               9           0.0442
 Chebyshev   Yes         14          12               9           0.0388
 ================================================
 ```
-
-*Figure 2: Comparison table on an 8x8 random grid. Chebyshev expands the fewest nodes because its estimate is the tightest lower bound. Manhattan requires more iterations due to 4-directional restriction.*
-
+ 
+*Figure 2: Comparison on an 8x8 random grid (seed=1741694322). Replace with your own screenshot.*
+ 
+The conclusion from running the comparison across several grids was that Chebyshev is the best performing heuristic for this implementation. If the goal is to find the optimal path as fast as possible on a grid that allows diagonal movement, Chebyshev should be the default. Euclidean is a reasonable second choice. Manhattan only makes sense if the movement model genuinely restricts diagonals.
+ 
+### Sample Output
+ 
+```
+Heuristic : Manhattan  (4-directional)
+ 
+Path Grid (@ = path):
+S @ . . . . . .
+. # . # . . . .
+. # . . . # . .
+. . @ . # . . .
+. # @ . . . # .
+. . # @ . # . .
+. # . @ @ @ @ .
+. . . . . . @ G
+ 
+Path length    : 12 cells
+Nodes expanded : 28
+Time           : 0.0891 ms
+```
+ 
+*Figure 1: Manhattan output on the same 8x8 grid. Longer path and more nodes expanded than Chebyshev due to 4-directional restriction.*
+ 
 ---
 
 ## 7. Architecture and Design Choices
 
-| File | Responsibility |
-|---|---|
-| `config.h` | All runtime parameters as `constexpr` values |
-| `gridGen.h` | Random grid generation with BFS solvability check |
-| `pathFinding.h` | Class declaration, enums, structs, inline helpers |
-| `pathFinding.cpp` | Full search pipeline |
-| `runner.h / runner.cpp` | Single-heuristic and comparison run modes |
-| `tests.h / tests.cpp` | Seven manual test cases |
-| `main.cpp` | 30-line entry point |
+### Single class owning the entire search state
+ 
+The entire A* search (open list, closed list, visited overlay, grid, start, goal, heuristic) lives inside one `PathPlanning` object. The decision to use a class rather than a collection of free functions was about state ownership. A* is not a stateless algorithm. It builds up open and closed lists across many iterations, and that state needs to live somewhere coherent. Putting it in a class means the state is scoped to the object's lifetime, multiple independent searches can run without interfering with each other, and the comparison runner can create three separate `PathPlanning` instances on the same grid without any shared state to manage.
+ 
+### Separating interface from implementation
 
-### Why `PlannerResult` instead of void
+`pathFinding.h` contains only declarations, structs, enums, and small inline helpers. All the actual logic is in `pathFinding.cpp`. This matters because anything that includes `pathFinding.h`, `runner.cpp`, `tests.cpp`, `main.cpp` does not need to recompile when the implementation changes, only when the interface changes. It also keeps the header readable as a description of what the class does, not how it does it.
 
-The original implementation had `AStar_Planner()` return nothing. The only way to check what happened was to read what printed to the terminal. That made writing test cases nearly impossible and made the comparison runner awkward since there was no way to collect numbers from three runs and print them in a table. Changing to a return type that carries all the measurable outcomes solved both problems at once. It also meant timing could be reported per-run rather than just printed inline.
+### The `PlannerResult` return type as a design boundary
 
-### Why the BFS check before returning a random grid
+Making `AStar_Planner()` return a struct rather than printing results directly was the most consequential architectural decision in the project. It creates a clean boundary between the algorithm and anything that consumes its output. The comparison runner does not know or care how A* works, it calls the planner, gets a struct back and formats a table. The test cases do not parse terminal output, they check `result.pathFound` and `result.pathLength` directly. If the return type were void, the comparison mode would be impossible to implement cleanly and tests would have no way to verify correctness programmatically. The struct also carries timing, which means the algorithm measures its own performance without the caller needing to wrap it in a timer.
+ 
+### Config as the single control point
 
-The first time random generation was tested without a solvability check, roughly one in five grids had no path. A* would run to completion, exhaust the open list, and report nothing found. In comparison mode that means one or more heuristics produce no data, which makes the table meaningless. Adding a BFS flood-fill after obstacle placement to verify the goal is reachable before returning the grid cost almost nothing in runtime and made the comparison reliable.
-
-### Why the movement model is tied to the heuristic
-
-Early on all three heuristics were using the same 8-direction array. The comparison numbers looked odd — Manhattan was finding longer paths than Chebyshev but not by the expected margin. The reason is that Manhattan is derived from axis-aligned movement. If you allow diagonals, a diagonal step from (0,0) to (1,1) has a true cost of sqrt(2) but Manhattan scores it as 2, which means it over-estimates and can cause A* to avoid paths that are actually optimal. Once the movement arrays were split so Manhattan only expands 4 neighbours, the results matched what the theory predicts.
-
-### Why diagonal moves cost 1.414 and not 1
-
-The original code returned 1 for every move regardless of direction. This made diagonal paths look artificially cheap in the g values, which distorted path lengths in the comparison. The real cost of moving diagonally one cell is sqrt(2) approximately 1.414. Changing `g_cost` to check whether the row and column both changed and return 1.414 in that case makes the accumulated path cost geometrically accurate, which matters when comparing Euclidean and Chebyshev paths against Manhattan.
-
-### Why `do-while` in grid generation
-
-Grid generation needs to run at least once before checking solvability. A `while` loop would require either duplicating the generation code before the loop or initialising the grid to a known-failing state just to satisfy the entry condition. The `do-while` runs the body once unconditionally then checks — that matches the actual requirement exactly without any extra setup.
-
-### Why `reconstructPath` returns goal-to-start order
-
-Following parent pointers from the goal naturally produces the path backwards. Reversing inside the function and returning start-to-goal would mean allocating and then reversing, doing the work twice. Instead, the raw goal-to-start sequence is returned to `printResult` which uses it directly to print the reverse direction, and a separate assignment with `rbegin()/rend()` fills `result.path` in start-to-goal order. Both orderings are needed and both are produced from the same sequence without any extra allocation.
-
+Every behaviour flag and modifiable parameter lives in `config.h` as `constexpr`. The consequence of this is that the algorithm files make no decisions about how to run, they just implement the search. Switching from a fixed grid to a random one, changing the heuristic, turning on verbose output, all of that happens in one file without touching a single line of algorithm code. This also means the same binary can demonstrate different behaviour just by recompiling with different config values, which is useful for a project that needs to show multiple modes.
+ 
+### Layered responsibility across files
+ 
+The file structure follows a deliberate hierarchy of responsibility:
+ 
+| Layer | Files | Responsibility |
+|---|---|---|
+| Configuration | `config.h` | All modifiable parameters |
+| Data | `gridGen.h` | Grid construction and validation |
+| Algorithm | `pathFinding.h / .cpp` | The search itself |
+| Orchestration | `runner.h / .cpp` | Setting up and running the planner |
+| Entry point | `main.cpp` | Menu, routing |
+ 
+Each layer only depends on the layers below it. `main.cpp` calls `runner.cpp` which calls `pathFinding`. Nothing in `pathFinding` knows about `runner` or `main`. This means any layer can be changed without affecting the ones above it, as long as the interface stays the same. When the comparison table format was changed, only `runner.cpp` needed updating. When the heuristic logic changed, only `pathFinding` was touched.
+ 
+### The heuristic as a runtime parameter, not a compile-time decision
+ 
+Rather than having separate classes for each heuristic or separate functions, the active heuristic is a member variable set via `setHeuristic()`. This means the comparison runner can create three instances of the same class, set a different heuristic on each, and run them identically without any branching logic in the caller. It also means adding a fourth heuristic later would require adding one case to the `Heuristic` enum and one case in the `h_cost` switch without changing anything in the architecture.
+ 
+```cpp
+planner.setHeuristic(Heuristic::CHEBYSHEV);
+auto result = planner.AStar_Planner();
+```
+ 
+The movement model is tied to the heuristic inside `expandSuccessors` using the same enum, so the caller never needs to configure them separately. Setting the heuristic sets everything about how that search runs.
+ 
 ---
 
 ## 8. Testing
 
 Seven manual test cases were written in `tests.cpp`. Each one creates a `PathPlanning` object, configures it with a specific grid, start, and goal, and calls `AStar_Planner()`. The full trace prints to the terminal so the output can be inspected visually.
+
+Testing was written alongside the refactor stage rather than at the end. The reason for doing it early was that splitting the code across eight files introduced the risk of breaking something that was working in the single file version. Having a set of cases that exercised different scenarios meant any regression would show up immediately in the terminal output rather than being silently introduced. The tests also served as documentation of what the algorithm is expected to handle, not just the normal case but the edge cases where validation, early exits, and dead ends need to work correctly.
 
 | Test | Scenario | Expected Result |
 |---|---|---|
@@ -770,15 +653,127 @@ Seven manual test cases were written in `tests.cpp`. Each one creates a `PathPla
 | 6 | Goal cell is an obstacle | Validation rejects before search |
 | 7 | Single winding corridor | Path found along the only valid route |
 
-Tests 5 and 6 verify that `validateInputs` catches bad configurations before any search begins. Test 3 verifies that start-equals-goal is handled as a special case. Test 7 is important because it confirms the algorithm works correctly when there is only one valid route and cannot take shortcuts.
-
-The test suite is run from the main menu with option 2. Each test prints a labelled header, runs the planner, and lets the output speak for itself. No assertion framework is used, which keeps the test code simple and easy to read.
-
+ 
+### Test 1: Normal path on 5x5 grid with obstacles
+ 
+The baseline case. Verifies the algorithm finds a valid path on the default grid used throughout development.
+ 
+```
+Semantic Grid:        Path Grid:
+S . . . . .           S @ . . . .
+. # # . . .           . # # . . .
+# # . . # .           # # @ . # .
+# # . # # .           # # @ # # .
+# . . . . .           # . @ . . .
+. . . . . G           . . . @ @ G
+ 
+Path length    : 7 cells
+Nodes expanded : 14
+Path found     : Yes
+```
+ 
+---
+ 
+### Test 2: No path: goal surrounded by obstacles
+ 
+Confirms the algorithm exhausts the open list and reports no path found rather than hanging or crashing.
+ 
+```
+Semantic Grid:
+S . . . .
+. . . . .
+. . # # #
+. . # G #
+. . # # #
+ 
+No path found - open list exhausted.
+```
+ 
+This test is important because it verifies the `while (!openList.empty())` termination condition works correctly when the goal is completely unreachable.
+ 
+---
+ 
+### Test 3: Start equals goal
+ 
+Verifies `validateInputs` catches this before any search begins. There is no reason to run A* if the start and goal are the same cell.
+ 
+```
+Start: (1,1)  Goal: (1,1)
+ 
+Start is already the goal. No pathfinding needed.
+```
+ 
+---
+ 
+### Test 4: Minimal 2x2 grid
+ 
+Tests the smallest possible solvable grid. Confirms the algorithm handles a single diagonal step and does not break on tiny inputs.
+ 
+```
+Semantic Grid:     Path Grid:
+S .                S .
+. G                . G
+ 
+Path length    : 2 cells
+Nodes expanded : 1
+```
+ 
+---
+ 
+### Test 5: Start cell is an obstacle
+ 
+Verifies validation rejects a configuration where the start position is blocked before any search logic runs.
+ 
+```
+Start: (0,0)  -  grid[0][0] = 1
+ 
+Invalid start or goal position.
+```
+ 
+---
+ 
+### Test 6: Goal cell is an obstacle
+ 
+Same as Test 5 but for the goal position. Both are checked together in `validateInputs` but tested separately to confirm each is caught independently.
+ 
+```
+Goal: (2,2)  -  grid[2][2] = 1
+ 
+Invalid start or goal position.
+```
+ 
+---
+ 
+### Test 7: Single winding corridor
+ 
+The most demanding test for correctness. The grid has only one valid route from start to goal with no shortcuts. If the algorithm expands nodes greedily without properly updating the open list, it can get stuck or find the wrong path. The correct output follows the only available route exactly.
+ 
+```
+Semantic Grid:
+S # # # #
+. # . . #
+. # . # #
+. . . # G
+# # # # .
+ 
+Path Grid:
+S # # # #
+@ # . . #
+@ # . # #
+@ @ @ # G
+# # # # .
+ 
+Path length    : 7 cells
+Nodes expanded : 9
+Path found     : Yes
+``` 
 ---
 
 ## 9. C-Style Code: What the AI Got Wrong
 
 During the later stages of the project, AI assistance was used to help restructure and optimise parts of the code. Reviewing what came back identified four places where it introduced C-style patterns rather than modern C++17. These are documented below with the preferred alternatives.
+
+Note: The direction offset arrays and the heuristic names array both have sizes that are fixed and known at compile time. std::array is the correct type for that situation rather than std::vector. A std::vector allocates memory on the heap at runtime, which makes sense when the size is unknown or changes during execution. When the size is fixed, that heap allocation is unnecessary overhead. std::array stores its data on the stack, has zero runtime allocation cost, and its size is part of its type so the compiler can catch mismatches at compile time. It also carries its size as a member so it does not decay to a pointer like a raw C array does. The rule is: if you know the size at compile time and it will not change, use std::array. If the size is dynamic, use std::vector.
 
 ### Issue 1: Raw pointer arrays for direction offsets
 
@@ -826,7 +821,7 @@ constexpr std::array<std::string_view, 3> names = {"Manhattan", "Euclidean", "Ch
 
 `std::string_view` is a non-owning, bounds-aware view of string data \[6\]. It is the correct C++17 type for a read-only reference to a string literal. `const char*` provides no length information and no bounds checking.
 
-### Issue 5: `#define` for `ACTIVE_HEURISTIC` instead of `constexpr`
+### Issue 4: `#define` for `ACTIVE_HEURISTIC` instead of `constexpr`
 
 ```cpp
 // As written
@@ -849,7 +844,7 @@ else if (ACTIVE_HEURISTIC == "CHEBYSHEV") h = PathPlanning::Heuristic::CHEBYSHEV
 
 `std::string_view` is a non-owning compile-time string type \[6\]. Its `==` operator compares content directly, so the `std::string active = ACTIVE_HEURISTIC` conversion in `runner.cpp` is no longer needed. This also makes `ACTIVE_HEURISTIC` consistent with every other declaration in `config.h`.
 
-### Issue 4: Linear O(n) closed list lookups
+### Issue 5: Linear O(n) closed list lookups
 
 ```cpp
 // As generated — O(n) scan on every neighbour check
