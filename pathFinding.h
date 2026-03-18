@@ -41,6 +41,10 @@ public:
     // Run A* and return the result. All trace output goes to terminal.
     PlannerResult AStar_Planner();
 
+    // Export the last run's grid, obstacles, visited cells, and path to a JSON
+    // file that can be loaded by the HTML visualiser (visualiser.html).
+    void exportJSON(const std::string& filename, const PlannerResult& result) const;
+
     // ------------------------------------------------------------------
     // Setters — configure the planner; defaults come from config.h
     // ------------------------------------------------------------------
@@ -61,10 +65,10 @@ private:
     // A single node in the search tree.
     // pr / pc are the parent cell coordinates (-1,-1 for the start node).
     struct SimpleNode {
-        int r, c;       // this cell
-        int g;          // actual cost from start
-        double h, f;    // heuristic and total estimate (double for Euclidean)
-        int pr, pc;     // parent cell (-1,-1 for start)
+        int    r, c;       // this cell
+        double g;          // actual cost from start (double: diagonal moves cost 1.414)
+        double h, f;       // heuristic and total estimate
+        int    pr, pc;     // parent cell (-1,-1 for start)
     };
 
     // Default grid (used when RANDOMISE_GRID = false in config.h)
@@ -112,8 +116,14 @@ private:
     // Heuristic / cost helpers
     // ------------------------------------------------------------------
 
-    // g cost: uniform grid, all moves cost 1
-    int g_cost(int, int, int, int) const { return 1; }
+    // g cost: 1.0 for straight moves (up/down/left/right), 1.414 for diagonals.
+    // Using sqrt(2) approximation for diagonal cost rather than always returning 1,
+    // because a diagonal step covers more ground than an axis-aligned step.
+    // Without this, diagonal paths appear artificially cheap and path lengths
+    // are misleading when comparing heuristics that use 8-directional movement.
+    double g_cost(int r1, int c1, int r2, int c2) const {
+        return (r1 != r2 && c1 != c2) ? 1.414 : 1.0;
+    }
 
     // h cost: dispatches to the active heuristic
     double h_cost(int row, int col, int gr, int gc) const
@@ -128,7 +138,7 @@ private:
         }
     }
 
-    double f_cost(int g, double h) const { return g + h; }
+    double f_cost(double g, double h) const { return g + h; }
 
     // Human-readable name for the active heuristic
     std::string heuristicName() const

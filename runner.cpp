@@ -8,6 +8,7 @@
 */
 
 #include <iostream>
+#include <array>
 #include <iomanip>
 #include <string>
 #include "runner.h"
@@ -20,7 +21,7 @@ void runHeuristicComparison(const std::vector<std::vector<int>>& grid)
     using H = PathPlanning::Heuristic;
 
     const H          heuristics[3] = { H::MANHATTAN, H::EUCLIDEAN, H::CHEBYSHEV };
-    const char* names[3] = { "Manhattan",  "Euclidean",  "Chebyshev" };
+    constexpr std::array<std::string_view, 3> names = { "Manhattan", "Euclidean", "Chebyshev" };
     PathPlanning::PlannerResult results[3];
 
     for (int i = 0; i < 3; ++i) {
@@ -78,5 +79,6 @@ void runSingleHeuristic(const std::vector<std::vector<int>>& grid)
     planner.setGoal(GOAL_ROW, GOAL_COL);
     planner.setHeuristic(h);
     planner.setVerbose(SHOW_ITERATION_TRACE);
-    planner.AStar_Planner();
+    auto result = planner.AStar_Planner();
+    planner.exportJSON("output.json", result);
 }

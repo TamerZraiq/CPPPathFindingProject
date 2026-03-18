@@ -13,8 +13,8 @@
 
 #include <vector>
 #include <queue>
-#include <cstdlib>
-#include <ctime>
+#include <random>
+#include <chrono>
 #include <iostream>
 #include "config.h"
 
@@ -57,11 +57,12 @@ static std::vector<std::vector<int>> generateGrid(unsigned int& outSeed)
 {
     // Pick seed
     unsigned int seed = RANDOM_SEED_AUTO
-        ? static_cast<unsigned int>(std::time(nullptr))
+        ? static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count())
         : RANDOM_SEED;
 
     outSeed = seed;
-    std::srand(seed);
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
 
     int rows = GRID_ROWS;
     int cols = GRID_COLS;
@@ -79,14 +80,13 @@ static std::vector<std::vector<int>> generateGrid(unsigned int& outSeed)
         for (int r = 0; r < rows; ++r) {
             for (int c = 0; c < cols; ++c) {
                 if ((r == sr && c == sc) || (r == gr && c == gc)) continue;
-                double roll = static_cast<double>(std::rand()) / RAND_MAX;
-                if (roll < OBSTACLE_DENSITY) grid[r][c] = 1;
+                if (dist(rng) < OBSTACLE_DENSITY) grid[r][c] = 1;
             }
         }
 
         // Reseed slightly differently each retry so we don't loop forever
         if (!isSolvable(grid, sr, sc, gr, gc))
-            std::srand(seed + attempts * 7);
+            rng.seed(seed + attempts * 7);
 
     } while (!isSolvable(grid, sr, sc, gr, gc));
 
