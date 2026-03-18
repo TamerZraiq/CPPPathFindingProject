@@ -10,6 +10,7 @@
 #pragma once
 #ifndef CONFIG_H
 #define CONFIG_H
+
 #include <string_view>
 
 // ------------------------------------------------------------------
@@ -56,7 +57,6 @@ constexpr bool COMPARE_HEURISTICS = true;
 // Active heuristic for single-run mode (ignored when COMPARE_HEURISTICS = true)
 // Options: "MANHATTAN"  "EUCLIDEAN"  "CHEBYSHEV"
 constexpr std::string_view ACTIVE_HEURISTIC = "MANHATTAN";
-
 
 // ------------------------------------------------------------------
 // Display options
