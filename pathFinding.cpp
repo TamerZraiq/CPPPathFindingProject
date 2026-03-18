@@ -5,7 +5,6 @@
 */
 
 #include <iostream>
-#include <fstream>
 #include <chrono>
 #include "pathFinding.h"
 
@@ -397,75 +396,4 @@ PathPlanning::PlannerResult PathPlanning::AStar_Planner()
     }
 
     return result;
-}
-
-// ============================================================
-//  exportJSON — writes grid state and path to a JSON file
-//  for the HTML visualiser (visualiser.html)
-// ============================================================
-void PathPlanning::exportJSON(const std::string& filename,
-    const PlannerResult& result) const
-{
-    std::ofstream out(filename);
-    if (!out) {
-        std::cout << "Could not open " << filename << " for writing.\n";
-        return;
-    }
-
-    int rows = static_cast<int>(v.size());
-    int cols = static_cast<int>(v[0].size());
-
-    out << "{\n";
-
-    // Grid dimensions
-    out << "  \"rows\": " << rows << ",\n";
-    out << "  \"cols\": " << cols << ",\n";
-
-    // Start and goal
-    out << "  \"start\": [" << startR << ", " << startC << "],\n";
-    out << "  \"goal\":  [" << goalR << ", " << goalC << "],\n";
-
-    // Obstacle cells
-    out << "  \"obstacles\": [\n";
-    bool firstObs = true;
-    for (int r = 0; r < rows; ++r) {
-        for (int c = 0; c < cols; ++c) {
-            if (v[r][c] == 1) {
-                if (!firstObs) out << ",\n";
-                out << "    [" << r << ", " << c << "]";
-                firstObs = false;
-            }
-        }
-    }
-    out << "\n  ],\n";
-
-    // Visited cells (closed list)
-    out << "  \"visited\": [\n";
-    bool firstVis = true;
-    for (const auto& cn : closedList) {
-        if (!firstVis) out << ",\n";
-        out << "    [" << cn.r << ", " << cn.c << "]";
-        firstVis = false;
-    }
-    out << "\n  ],\n";
-
-    // Path
-    out << "  \"path\": [\n";
-    for (int i = 0; i < static_cast<int>(result.path.size()); ++i) {
-        if (i > 0) out << ",\n";
-        out << "    [" << result.path[i].first << ", " << result.path[i].second << "]";
-    }
-    out << "\n  ],\n";
-
-    // Stats
-    out << "  \"pathFound\": " << (result.pathFound ? "true" : "false") << ",\n";
-    out << "  \"iterations\": " << result.iterations << ",\n";
-    out << "  \"nodesExpanded\": " << result.nodesExpanded << ",\n";
-    out << "  \"pathLength\": " << result.pathLength << ",\n";
-    out << "  \"timeMs\": " << result.timeMs << "\n";
-
-    out << "}\n";
-    out.close();
-
-    std::cout << "Exported to " << filename << "\n";
 }
