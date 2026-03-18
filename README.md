@@ -10,12 +10,28 @@
 ---
  
 ## Table of Contents
- 
+1. [Project Overview]
+2. [The A* Algorithm]
+3. [AI Tools Declaration]
+4. [Development History]
+5. [Code Walkthrough]
+   - [config.h]
+   - [gridGen.h]
+6. [Heuristic Functions]
+7. [Architecture and Design Choices]
+8. [Testing]
+9. [C-Style Code: What the AI Got Wrong]
+10. [Limitations and Improvements]
+11. [Project Planning]
+12. [Problems Encountered]
+13. [Reflection]
+14. [References]
+    
 ## 1. Project Overview
  
 This project implements the A* search algorithm in C++ for 2D grid-based pathfinding in Visual Studio 2022 IDE. The program finds the shortest path between a start cell and a goal cell on a grid that may contain obstacles. It supports three heuristic functions, random grid generation with a built-in solvability check, and a comparison mode that runs all three heuristics on the same grid and prints a results table.
 
-The implementation follows the A* structure from GeeksforGeeks [4] and builds on it with a full C++ class-based design. The PathPlanning class handles the entire search pipeline internally — open and closed list management, successor generation, cost computation, and path reconstruction. Outside the class, config.h controls all runtime parameters so the grid size, start and goal positions, heuristic choice, and output verbosity can all be changed in one place without touching the algorithm code. The project was developed in four stages: getting a correct single-file implementation, splitting it into a modular multi-file structure, adding the config system and the three heuristics, and finally a code review pass. Each stage is covered in Section 4.
+The implementation follows the A* structure from GeeksforGeeks [4] and builds on it with a full C++ class-based design. The PathPlanning class handles the entire search pipeline internally: open and closed list management, successor generation, cost computation, and path reconstruction. Outside the class, config.h controls all runtime parameters so the grid size, start and goal positions, heuristic choice, and output verbosity can all be changed in one place without touching the algorithm code. The project was developed in four stages: getting a correct single-file implementation, splitting it into a modular multi-file structure, adding the config system and the three heuristics, and finally a code review pass. Each stage is covered in Section 4.
 
 ### How to Run
  
@@ -200,10 +216,134 @@ The final project state at this point: eight files, config.h controlling all par
 ---
  
 ## 5. Code Walkthrough
+### 5.1 `config.h`
+ 
+This file's main purpose is to hold every modifiable parameter in one place.
+ 
+```cpp
+#pragma once
+#ifndef CONFIG_H
+#define CONFIG_H
+```
+
+`#pragma once` prevents the file from being included more than once per translation unit. The `#ifndef` guard does the same thing in a more traditional way. Both are kept for compatibility.
+ 
+```cpp
+constexpr int GRID_ROWS = 8;
+constexpr int GRID_COLS = 8;
+```
+ 
+`constexpr` means the value is resolved at compile time and substituted wherever it appears. There is no runtime variable. This is preferred over `#define` for numeric values because it is type-safe and respects scope \[6\] \[7\].
+
+```cpp
+constexpr int START_ROW = 0;
+constexpr int START_COL = 0;
+constexpr int GOAL_ROW  = 7;
+constexpr int GOAL_COL  = 7;
+```
+
+Used in `gridGen.h` to keep those cells free during obstacle placement, and in `runner.cpp` to configure the planner before each run.
+
+```cpp
+constexpr bool   RANDOMISE_GRID   = true;
+constexpr double OBSTACLE_DENSITY = 0.28;
+```
+
+`OBSTACLE_DENSITY` of 0.28 means roughly 28% of cells become obstacles. Going above about 0.45 risks generating grids where no path exists at all, which would cause the generator to loop many times retrying.
+
+```cpp
+constexpr bool         RANDOM_SEED_AUTO = true;
+constexpr unsigned int RANDOM_SEED      = 42;
+```
+
+When `RANDOM_SEED_AUTO` is true, the seed comes from the current Unix timestamp so the grid changes every run. Setting it false and fixing `RANDOM_SEED` makes a specific layout reproducible, which is useful for debugging.
+
+```cpp
+constexpr bool COMPARE_HEURISTICS  = true;
+#define        ACTIVE_HEURISTIC "MANHATTAN"
+constexpr bool SHOW_ITERATION_TRACE = false;
+```
+
+`COMPARE_HEURISTICS` runs all three heuristics and prints a table. `ACTIVE_HEURISTIC` was originally a `#define` string, which is inconsistent with every other declaration in this file and unsafe to compare directly, `#define` has no type and no scope and comparing `const char*` with `==` compares pointer addresses not content. It was changed to `constexpr std::string_view` \[6\] so it is type-safe, consistent with the rest of `config.h`, and can be compared with `==` directly in `runner.cpp` without copying into a `std::string` first. `SHOW_ITERATION_TRACE` when true prints the open list, selected node, successors, and visited overlay after every single iteration. 
+
+---
+
+### 5.2 `gridGen.h`
+
+Provides two functions: a Breadth-First Search (BFS) solvability checker and a random grid generator.
+
+#### `isSolvable`
+ 
+```cpp
+static bool isSolvable(const std::vector<std::vector<int>>& grid,
+                        int sr, int sc, int gr, int gc)
+```
+
+`static` gives this function file-scope linkage, meaning it is not visible outside `gridGen.h`. It takes the grid by `const` reference so no copy is made.
+
+```cpp
+    std::vector<std::vector<bool>> seen(rows, std::vector<bool>(cols, false));
+    std::queue<std::pair<int,int>> q;
+    q.push({sr, sc});
+    seen[sr][sc] = true;
+```
+
+A 2D `seen` array stops the BFS from visiting the same cell twice. The queue holds row-column pairs. The start cell is pushed first and immediately marked so it is not re-added.
+
+```cpp
+    while (!q.empty()) {
+        auto [r, c] = q.front(); q.pop();
+        if (r == gr && c == gc) return true;
+```
+
+`auto [r, c]` is C++17 structured binding \[6\]. It unpacks the pair into named variables without needing `.first` and `.second`. The goal check happens immediately after dequeuing.
+ 
+```cpp
+        for (int k = 0; k < 8; ++k) {
+            int nr = r + dr[k], nc = c + dc[k];
+            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols
+                && !seen[nr][nc] && grid[nr][nc] == 0)
+            {
+                seen[nr][nc] = true;
+                q.push({nr, nc});
+            }
+        }
+    }
+    return false;
+```
+
+All eight neighbours are checked. Bounds are checked before the cell is accessed to prevent out-of-range reads. If the queue empties without finding the goal, the function returns false.
+ 
+#### `generateGrid`
+
+```cpp
+static std::vector<std::vector<int>> generateGrid(unsigned int& outSeed)
+```
+
+The seed is passed by reference so the caller can record which one was actually used.
+
+```cpp
+    do {
+        ++attempts;
+        grid.assign(rows, std::vector<int>(cols, 0));
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                if ((r == sr && c == sc) || (r == gr && c == gc)) continue;
+                double roll = static_cast<double>(std::rand()) / RAND_MAX;
+                if (roll < OBSTACLE_DENSITY) grid[r][c] = 1;
+            }
+        }
+        if (!isSolvable(grid, sr, sc, gr, gc))
+            std::srand(seed + attempts * 7);
+    } while (!isSolvable(grid, sr, sc, gr, gc));
+```
+
+The `do-while` guarantees at least one generation attempt. Start and goal cells are skipped with `continue` so they are always free. Each cell gets a random roll between 0 and 1. If the result is unsolvable, the seed shifts by `attempts * 7` to escape the same bad layout and the loop retries.
  
 ---
 ## 6. Heuristic Functions
 ## 7. Architecture and Design Choices
+## 8. Testing
 ## 9. C-Style Code: What the AI Got Wrong
 ## 10. Limitations and Improvements
 ## 11. Project Planning
