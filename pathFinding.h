@@ -41,10 +41,6 @@ public:
     // Run A* and return the result. All trace output goes to terminal.
     PlannerResult AStar_Planner();
 
-    // Export the last run's grid, obstacles, visited cells, and path to a JSON
-    // file that can be loaded by the HTML visualiser (visualiser.html).
-    void exportJSON(const std::string& filename, const PlannerResult& result) const;
-
     // ------------------------------------------------------------------
     // Setters — configure the planner; defaults come from config.h
     // ------------------------------------------------------------------

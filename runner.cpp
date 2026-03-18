@@ -79,6 +79,5 @@ void runSingleHeuristic(const std::vector<std::vector<int>>& grid)
     planner.setGoal(GOAL_ROW, GOAL_COL);
     planner.setHeuristic(h);
     planner.setVerbose(SHOW_ITERATION_TRACE);
-    auto result = planner.AStar_Planner();
-    planner.exportJSON("output.json", result);
+    planner.AStar_Planner();
 }
