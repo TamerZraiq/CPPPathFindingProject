@@ -786,7 +786,10 @@ const int* dr    = (heuristic == Heuristic::MANHATTAN) ? dr4 : dr8;
 
 ```cpp
 // Modern C++17 alternative
+{% raw %}
+```cpp
 constexpr std::array<std::pair<int,int>, 4> dirs4 = {{{-1,0},{1,0},{0,-1},{0,1}}};
+{% endraw %}
 ```
 
 `std::array` carries its own size, is bounds-safe, and works naturally with range-based for \[6\] \[7\]. A raw pointer to a local array is not bounds-safe and does not communicate its size.
