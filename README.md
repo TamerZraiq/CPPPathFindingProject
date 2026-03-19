@@ -867,11 +867,13 @@ This scan runs for every neighbour of every expanded node. On larger grids the c
 
 ## 10. Limitations and Improvements
 
-**Open list selection is O(n).** `selectBestNode` scans the entire vector each iteration. A `std::priority_queue` (binary heap) reduces this to O(log n) \[6\] \[7\] and would make the timing comparison more meaningful, since currently the selection overhead can dominate over the actual heuristic difference.
-
-**Closed list lookup is O(n).** Covered in Section 9. Should be an `unordered_set`.
-
-**No visual output.** Output is terminal text only. A graphical grid visualiser would make it easier to understand what the algorithm is actually exploring on larger grids, particularly the difference between how much of the grid each heuristic visits.
+**Open list is a flat vector with O(n) selection.** Every iteration, `selectBestNode` scans the entire open list to find the lowest f value. On small grids this is fine, but it scales badly. The standard fix is a `std::priority_queue`, which is a binary heap that keeps the minimum at the top and reduces selection to O(log n) \[6\] \[7\]. The practical impact on this project is that the timing comparison between heuristics is partly measuring selection overhead rather than the heuristic quality itself. Chebyshev looks faster partly because it expands fewer nodes and therefore calls `selectBestNode` fewer times, not purely because its estimates are better. A priority queue would make the timing numbers more meaningful.
+ 
+**Closed list lookup is O(n).** Every neighbour check during `expandSuccessors` scans the entire closed list linearly. On a small 8x8 grid this is not noticeable, but on a 50x50 grid with hundreds of expanded nodes the cost adds up fast. Replacing the closed list vector with an `std::unordered_set` and a custom pair hash would reduce every lookup to O(1) amortised. This is the single most impactful performance fix available without changing the algorithm.
+ 
+**Diagonal cost is approximate.** `g_cost` returns 1.414 for diagonals, which is a rounded approximation of sqrt(2). Using `std::sqrt(2.0)` as a constant would be more accurate. The difference is small but it means accumulated path costs have a small rounding error on paths with many diagonal steps, which slightly affects how A* compares paths internally.
+ 
+**No weighted terrain.** Every free cell costs the same to enter. A more realistic pathfinding scenario would have terrain costs, where moving through certain cells is more expensive than others. The current `g_cost` function only distinguishes straight from diagonal, not cell type. Adding terrain weights would require storing a cost map alongside the obstacle map and updating `g_cost` to read from it.
 
 ---
 
@@ -890,27 +892,34 @@ Each phase built on a working executable from the previous one. This made it pos
 
 ## 12. Problems Encountered
 
-**The outer for-loop.** The initial code ran the entire search four times inside a `for (k < 4)` loop. The output looked correct at first glance because the path was found eventually, but the algorithm was restarting from scratch each time. This took some careful reading of the output to spot, and was fixed by removing the outer loop entirely.
-
-**Goal found but search continued.** After reaching the goal, the loop kept running. The fix was returning a `goalFound` flag from `expandSuccessors` and breaking the main loop on it.
-
-**Manhattan with 8-directional movement.** All three heuristics were originally using the 8-direction array. Manhattan is inadmissible for diagonal movement because it over-estimates those steps \[1\] \[2\]. Fixing this required understanding admissibility mathematically, not just knowing the formula. The movement model now ties directly to the heuristic via the same enum.
-
-**Euclidean truncated to int.** When Euclidean was added, `h` and `f` in the node struct were still `int`. The `sqrt` return value was being silently cut to an integer, making Euclidean produce almost the same results as Manhattan. Changing those fields to `double` fixed it.
-
-**`goto` in path reconstruction.** The initial code used a `goto path_done` label to exit the reconstruction loop. This was replaced with a clean `return` from inside the loop.
+**The outer for-loop wrapping the entire search.** The search was running four times on every execution because of a `for (k < 4)` loop wrapping the entire while loop. The path printed correctly each time so it looked like it was working, but the iteration count in the output was wrong and the open list was reinitialising mid-run. The bug only became clear when comparing iteration counts across runs and noticing the numbers reset. Removed the outer loop entirely.
+ 
+**Goal found but the search kept going.** After the goal was added to the closed list in `expandSuccessors`, nothing told the main loop to stop. The loop continued expanding nodes that were already useless. Fixed by returning a `bool` from `expandSuccessors` and breaking the main loop when it returns true.
+ 
+```cpp
+goalFound = expandSuccessors(q, gr, gc);
+if (goalFound) break;
+```
+ 
+**Manhattan paired with 8-directional movement.** All three heuristics were using the same 8-direction array at first. The comparison numbers looked wrong - Manhattan was finding longer paths with more nodes expanded than the gap between it and Chebyshev should have been. The problem was that Manhattan over-estimates the cost of a diagonal move, which makes it inadmissible in that context \[1\] \[2\]. A* with an inadmissible heuristic can skip the actual optimal path. The fix was tying the movement array to the heuristic enum so Manhattan always uses 4 directions and Euclidean and Chebyshev use 8.
+ 
+**Euclidean distance truncated to int.** When Euclidean was added, `h` and `f` in `SimpleNode` were still `int`. `std::sqrt` returns a `double` and assigning it to `int` cuts off the decimal part silently. The effect was that Euclidean's h values were nearly identical to Manhattan's, so the comparison table showed almost no difference between them. Changing `h`, `f`, and eventually `g` to `double` fixed it.
+ 
+**`goto` in path reconstruction.** The reconstruction loop used `goto path_done` to break out when the start node was reached. Replaced with a direct `return` from inside the loop, which is cleaner and makes the control flow obvious.
+ 
+**`#define ACTIVE_HEURISTIC` inconsistent with the rest of config.h.** Every other parameter in `config.h` is `constexpr`, but this one was a `#define` string. It was not caught until a deliberate review pass of the config file. The consequence was that `runner.cpp` had to copy it into a `std::string` just to compare it safely, because `const char*` comparison with `==` compares pointer addresses. Changed to `constexpr std::string_view` which fixed both the inconsistency and the unnecessary string copy.
 
 ---
 
 ## 13. Reflection
 
-The outer for-loop bug took longer to find than it should have. The path printed correctly so the output looked fine, but something felt off about how many iterations were being reported. It was only after staring at the iteration count across several runs and noticing it reset mid-output that the issue became obvious. That kind of bug is annoying because the program does not crash and the result is not wrong, it is just wasteful and the trace is misleading. It taught me to look at the numbers, not just whether a path appeared.
-
-The Manhattan admissibility problem was the most interesting thing to figure out in the whole project. I knew the three heuristic formulas from GeeksforGeeks \[4\] but had not thought hard about why each one is paired with a specific movement model. When the comparison table showed Manhattan finding longer paths with more nodes expanded than expected, I went back to the definition of admissibility and worked through what happens when you allow a diagonal move but your heuristic charges for two axis-aligned steps instead of one diagonal. Once that clicked, the fix was obvious — restrict Manhattan to 4 directions. But getting to that understanding took a while.
-
-Using AI to help with restructuring and debugging was useful, but the times it introduced code without me reviewing it carefully caused more work. The `#define` for `ACTIVE_HEURISTIC` is a good example — it was sitting in `config.h` inconsistent with everything around it and I did not catch it until reviewing the file specifically for that kind of thing. The lesson is not to trust generated or suggested code without reading it properly, even when it works.
-
-If I were starting again I would set up `std::priority_queue` for the open list from day one. The flat vector with linear `selectBestNode` means the timing comparison is partly measuring selection overhead rather than the heuristic difference, which defeats the point. The numbers in the comparison table are still directionally correct but not as clean as they would be with a proper heap.
+The biggest thing I would do differently is implement the open list as a `std::priority_queue` from the start. I knew it was the correct data structure for A* and chose a flat vector because it was simpler to get working quickly. That decision made the timing comparison less useful because selection overhead is mixed in with the actual heuristic performance. By the time the comparison mode was built, the vector was already wired through everything and replacing it would have taken more time than the project had left.
+ 
+The Manhattan admissibility bug taught me the difference between knowing a formula and understanding why it works. I knew all three heuristic formulas from the GeeksforGeeks reference \[4\] before starting, but I had not thought about what movement model each one assumes. When the results looked wrong I had to go back to the definition of admissibility and trace through what actually happens when you apply Manhattan to a diagonal move. That process of working backwards from a wrong result to a mathematical explanation was more useful than just reading the formulas had been.
+ 
+Reviewing AI-generated code before using it is not optional. The `#define ACTIVE_HEURISTIC` issue, the `std::rand` usage, and the raw pointer arrays were all things that worked fine at runtime but were wrong for the codebase. None of them would have been caught by running the program and checking the output. They were only caught by reading the code specifically looking for problems. The lesson is that correct output does not mean correct code.
+ 
+Testing alongside the refactor rather than at the end was the right call. When the single-file version was split into eight files, the test cases ran immediately after and confirmed nothing had broken. Without them, regressions from the refactor would have been much harder to trace back to a specific change.
 
 ---
 
