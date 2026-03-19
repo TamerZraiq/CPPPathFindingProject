@@ -26,12 +26,13 @@
 7. [Architecture and Design Choices](#7-architecture-and-design-choices)
 8. [Testing](#8-testing)
 9. [C-Style Code: What the AI Got Wrong](#9-c-style-code-what-the-ai-got-wrong)
-10. [Limitations and Improvements](#10-limitations-and-improvements)
-11. [Project Planning](#11-project-planning)
+10. [Terminal Results](#10-terminal-results)
+11. [Limitations and Improvements](#11-limitations-and-improvements)
 12. [Problems Encountered](#12-problems-encountered)
 13. [Reflection](#13-reflection)
 14. [References](#14-references)
-    
+
+
 ## 1. Project Overview
  
 This project implements the A* search algorithm in C++ for 2D grid-based pathfinding in Visual Studio 2022 IDE. The program finds the shortest path between a start cell and a goal cell on a grid that may contain obstacles. It supports three heuristic functions, random grid generation with a built-in solvability check, and a comparison mode that runs all three heuristics on the same grid and prints a results table.
@@ -222,7 +223,7 @@ With all three heuristics implemented and the configuration system in place, the
 
 The C++ audit highlighted a few areas that needed improvement. Direction offsets were implemented using raw int* arrays instead of std::array, random number generation relied on std::rand/std::srand rather than std::mt19937, string literals were handled with const char* instead of std::string_view, and the closed list was being searched with a linear O(n) scan for every neighbour check. These issues and their modern alternatives are discussed in Section 9.
 
-From an algorithmic perspective, the review confirmed that the implementation behaves correctly end-to-end. The handling of stale duplicates in the open list was verified — nodes can appear multiple times if their cost is updated after insertion, and the closed list check before expansion correctly filters out outdated entries. The use of double for the h and f costs was also validated, as Euclidean distance requires fractional precision. In addition, the movement model was cross-checked against each heuristic to ensure consistency, particularly that the Manhattan distance is restricted to non-diagonal motion.
+From an algorithmic perspective, the review confirmed that the implementation behaves correctly end-to-end. The handling of stale duplicates in the open list was verified, nodes can appear multiple times if their cost is updated after insertion, and the closed list check before expansion correctly filters out outdated entries. The use of double for the h and f costs was also validated, as Euclidean distance requires fractional precision. In addition, the movement model was cross-checked against each heuristic to ensure consistency, particularly that the Manhattan distance is restricted to non-diagonal motion.
 
 At this stage, the project consists of eight files, with config.h centralising all parameters. The system supports random grid generation with BFS-based solvability checks, three heuristics aligned with their respective movement models, and a comparison table reporting iteration count, nodes expanded, path length, and execution time. Seven test cases are included, and the main entry point has been reduced to a concise 30-line main.cpp. The introduction of the PlannerResult return type also allows results to be inspected programmatically, rather than relying on terminal output.
 
@@ -274,7 +275,7 @@ constexpr bool SHOW_ITERATION_TRACE = false;
  
 The two functions here, `isSolvable` and `generateGrid`, are both `static` free functions rather than class methods. The decision was intentional: grid generation has nothing to do with pathfinding. Putting it in the `PathPlanning` class would mix concerns that are independent of each other. A separate file that the rest of the program can include without pulling in the whole planner keeps responsibilities clean.
  
-BFS was chosen for the solvability check rather than running A* itself because BFS does not need any cost or heuristic setup — it just checks reachability. Running A* to check solvability would require configuring a full planner object, which is more setup than the check deserves. BFS is also guaranteed to terminate in O(rows x cols) time regardless of the grid layout.
+BFS was chosen for the solvability check rather than running A* itself because BFS does not need any cost or heuristic setup , it just checks reachability. Running A* to check solvability would require configuring a full planner object, which is more setup than the check deserves. BFS is also guaranteed to terminate in O(rows x cols) time regardless of the grid layout.
  
 ```cpp
 static bool isSolvable(const std::vector<std::vector<int>>& grid,
@@ -330,7 +331,7 @@ enum class Heuristic {
  
 #### Why `PlannerResult` as a return type
  
-The original implementation had `AStar_Planner()` return void. The only way to verify what happened was to read the terminal output. This made writing test cases nearly impossible — there was no way to check programmatically whether a path was found or how many nodes were expanded. Switching to a return struct meant the comparison runner could collect three results, inspect the numbers, and format the table without parsing any printed output. Every field has a default value so an early return due to invalid inputs gives the caller a properly zeroed result rather than undefined values.
+The original implementation had `AStar_Planner()` return void. The only way to verify what happened was to read the terminal output. This made writing test cases nearly impossible, there was no way to check programmatically whether a path was found or how many nodes were expanded. Switching to a return struct meant the comparison runner could collect three results, inspect the numbers, and format the table without parsing any printed output. Every field has a default value so an early return due to invalid inputs gives the caller a properly zeroed result rather than undefined values.
  
 ```cpp
 struct PlannerResult {
@@ -345,7 +346,7 @@ struct PlannerResult {
  
 #### Why `g`, `h`, and `f` are all `double` in `SimpleNode`
  
-`g` started as `int` because all moves originally cost 1. When diagonal moves were given a cost of 1.414 to reflect their true geometric distance, the accumulated cost became fractional and `int` would silently truncate it, making the path cost wrong. `h` and `f` were already `double` because Euclidean distance uses `std::sqrt` which returns `double` — keeping them `int` was causing Euclidean to behave like a rounded-down approximation of Manhattan, which made the comparison table meaningless. Making all three `double` was the consistent fix.
+`g` started as `int` because all moves originally cost 1. When diagonal moves were given a cost of 1.414 to reflect their true geometric distance, the accumulated cost became fractional and `int` would silently truncate it, making the path cost wrong. `h` and `f` were already `double` because Euclidean distance uses `std::sqrt` which returns `double`, keeping them `int` was causing Euclidean to behave like a rounded-down approximation of Manhattan, which made the comparison table meaningless. Making all three `double` was the consistent fix.
  
 ```cpp
 struct SimpleNode {
@@ -390,7 +391,7 @@ double h_cost(int row, int col, int gr, int gc) const
  
 #### Why display functions are static free functions, not class methods
  
-The five print functions have no need for class state — they take everything they need as parameters. Making them class methods would give them access to the entire private interface of `PathPlanning` for no reason. Declaring them `static` at file scope means they are invisible outside `pathFinding.cpp`, which prevents them from polluting the global namespace and makes it clear they are implementation details, not part of the public interface.
+The five print functions have no need for class state, they take everything they need as parameters. Making them class methods would give them access to the entire private interface of `PathPlanning` for no reason. Declaring them `static` at file scope means they are invisible outside `pathFinding.cpp`, which prevents them from polluting the global namespace and makes it clear they are implementation details, not part of the public interface.
  
 ```cpp
 static void printRawGrid(const std::vector<std::vector<int>>& grid)
@@ -412,7 +413,7 @@ for (const auto& p : path) onPath[p.first][p.second] = true;
  
 #### Why lambdas are used in `validateInputs` rather than private methods
  
-`inBounds` and `isFree` are used only inside `validateInputs`. Making them private class methods would expose them to the rest of the class for no benefit and would require declaring them in the header. Lambdas defined locally make their scope explicit — they exist only for this one function, and the check is defined right next to where it is used.
+`inBounds` and `isFree` are used only inside `validateInputs`. Making them private class methods would expose them to the rest of the class for no benefit and would require declaring them in the header. Lambdas defined locally make their scope explicit, they exist only for this one function, and the check is defined right next to where it is used.
  
 ```cpp
 auto inBounds = [&](int r, int c) {
@@ -478,7 +479,7 @@ The comparison function creates a fresh `PathPlanning` object for each heuristic
 ```cpp
 for (int i = 0; i < 3; ++i) {
     PathPlanning planner;       // fresh object every time
-    planner.setGrid(grid);      // same grid for all three — fair comparison
+    planner.setGrid(grid);      // same grid for all three: fair comparison
     planner.setHeuristic(heuristics[i]);
     results[i] = planner.AStar_Planner();
 }
@@ -487,11 +488,11 @@ for (int i = 0; i < 3; ++i) {
 The `runSingleHeuristic` function no longer needs an intermediate `std::string` to compare `ACTIVE_HEURISTIC`. After changing it from `#define` to `constexpr std::string_view`, the `==` operator compares content directly. The old code created a heap-allocated `std::string` just to make a safe comparison, which was unnecessary overhead caused by the wrong type choice.
  
 ```cpp
-// Before — std::string needed because #define gives const char*
+// Before: std::string needed because #define gives const char*
 std::string active = ACTIVE_HEURISTIC;
 if (active == "EUCLIDEAN") ...
  
-// After — string_view == compares content directly
+// After: string_view == compares content directly
 if (ACTIVE_HEURISTIC == "EUCLIDEAN") ...
 ```
  
@@ -865,7 +866,17 @@ This scan runs for every neighbour of every expanded node. On larger grids the c
 
 ---
 
-## 10. Limitations and Improvements
+## 10. Terminal Results
+
+![description](images/Terminal1.png)
+![description](images/Terminal2.png)
+![description](images/Terminal3.png)
+![description](images/Terminal4.png)
+
+
+---
+
+## 11. Limitations and Improvements
 
 **Open list is a flat vector with O(n) selection.** Every iteration, `selectBestNode` scans the entire open list to find the lowest f value. On small grids this is fine, but it scales badly. The standard fix is a `std::priority_queue`, which is a binary heap that keeps the minimum at the top and reduces selection to O(log n) \[6\] \[7\]. The practical impact on this project is that the timing comparison between heuristics is partly measuring selection overhead rather than the heuristic quality itself. Chebyshev looks faster partly because it expands fewer nodes and therefore calls `selectBestNode` fewer times, not purely because its estimates are better. A priority queue would make the timing numbers more meaningful.
  
@@ -877,20 +888,7 @@ This scan runs for every neighbour of every expanded node. On larger grids the c
 
 ---
 
-## 11. Project Planning
-
-| Phase | Focus | What was done |
-|---|---|---|
-| 1 | Core A* loop | Working algorithm, five structural bugs fixed, correct output verified |
-| 2 | Refactor | Split into eight files, added PlannerResult, verbose flag, timing, seven test cases |
-| 3 | Config and features | config.h, random grids with BFS check, all three heuristics, movement model fix |
-| 4 | Review | C-style audit, four issues documented with modern alternatives, report written |
-
-Each phase built on a working executable from the previous one. This made it possible to verify that nothing broke during each refactor.
-
----
-
-## 12. Problems Encountered
+## 13. Problems Encountered
 
 **The outer for-loop wrapping the entire search.** The search was running four times on every execution because of a `for (k < 4)` loop wrapping the entire while loop. The path printed correctly each time so it looked like it was working, but the iteration count in the output was wrong and the open list was reinitialising mid-run. The bug only became clear when comparing iteration counts across runs and noticing the numbers reset. Removed the outer loop entirely.
  
@@ -911,7 +909,7 @@ if (goalFound) break;
 
 ---
 
-## 13. Reflection
+## 14. Reflection
 
 The biggest thing I would do differently is implement the open list as a `std::priority_queue` from the start. I knew it was the correct data structure for A* and chose a flat vector because it was simpler to get working quickly. That decision made the timing comparison less useful because selection overhead is mixed in with the actual heuristic performance. By the time the comparison mode was built, the vector was already wired through everything and replacing it would have taken more time than the project had left.
  
@@ -923,7 +921,7 @@ Testing alongside the refactor rather than at the end was the right call. When t
 
 ---
 
-## 14. References
+## 15. References
 
 [1] Hart, P. E., Nilsson, N. J., and Raphael, B. (1968). *A Formal Basis for the Heuristic Determination of Minimum Cost Paths.* IEEE Transactions on Systems Science and Cybernetics, 4(2), pp. 100-107.
 
