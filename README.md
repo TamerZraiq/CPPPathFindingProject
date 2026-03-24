@@ -565,7 +565,7 @@ Chebyshev   Yes         14          12               9           0.0388
 ================================================
 ```
  
-*Figure 2: Comparison on an 8x8 random grid (seed=1741694322). Replace with your own screenshot.*
+*Figure 2: Comparison on an 8x8 random grid (seed=1741694322).*
  
 The conclusion from running the comparison across several grids was that Chebyshev is the best performing heuristic for this implementation. If the goal is to find the optimal path as fast as possible on a grid that allows diagonal movement, Chebyshev should be the default. Euclidean is a reasonable second choice. Manhattan only makes sense if the movement model genuinely restricts diagonals.
  
@@ -774,7 +774,7 @@ Path found     : Yes
 
 During the later stages of the project, AI assistance was used to help restructure and optimise parts of the code. Reviewing what came back identified four places where it introduced C-style patterns rather than modern C++17. These are documented below with the preferred alternatives.
 
-Note: The direction offset arrays and the heuristic names array both have sizes that are fixed and known at compile time. std::array is the correct type for that situation rather than std::vector. A std::vector allocates memory on the heap at runtime, which makes sense when the size is unknown or changes during execution. When the size is fixed, that heap allocation is unnecessary overhead. std::array stores its data on the stack, has zero runtime allocation cost, and its size is part of its type so the compiler can catch mismatches at compile time. It also carries its size as a member so it does not decay to a pointer like a raw C array does. The rule is: if you know the size at compile time and it will not change, use std::array. If the size is dynamic, use std::vector.
+Note: The direction offset arrays and the heuristic names array both have sizes that are fixed and known at compile time. std::array is the correct type for that situation rather than std::vector. A std::vector allocates memory on the heap at runtime, which makes sense when the size is unknown or changes during execution. When the size is fixed, that heap allocation is unnecessary overhead. std::array stores its data on the stack, has zero runtime allocation cost, and its size is part of its type so the compiler can catch mismatches at compile time. It also carries its size as a member so it does not decay to a pointer like a raw C array does.
 
 ### Issue 1: Raw pointer arrays for direction offsets
 
